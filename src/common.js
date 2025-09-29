@@ -33,62 +33,69 @@ class WASMFingerprint {
         const Module = await this.initWASM();
         const results = {};
 
-        function statsOf(arr) {
+        const statsOf = (arr) => {
             if (!arr.length) return { mean: 0, std: 0, rsd: 1, median: 0 };
             const sorted = [...arr].sort((a, b) => a - b);
             const n = sorted.length;
             const median = n % 2 ? sorted[(n - 1) / 2] : (sorted[n / 2 - 1] + sorted[n / 2]) / 2;
-            // 截尾均值（10%）
-            const cut = Math.max(1, Math.floor(n * 0.1));
+            const cut = Math.max(1, Math.floor(n * 0.15)); // 更强截尾15%
             const trimmed = sorted.slice(cut, Math.max(cut + 1, n - cut));
             const mean = trimmed.reduce((a, b) => a + b, 0) / trimmed.length;
-            const variance = trimmed.reduce((s, x) => s + Math.pow(x - mean, 2), 0) / trimmed.length;
-            const std = Math.sqrt(variance);
+            const variance = trimmed.reduce((s, x) => s + Math.pow(x - mean, 2), 0) / Math.max(1, trimmed.length - 1);
+            const std = Math.sqrt(Math.max(0, variance));
             const rsd = mean > 0 ? std / mean : 1;
             return { mean, std, rsd, median, n };
-        }
+        };
 
-        async function measureOne(kind, size, iters) {
-            const fn = kind === 'seq' ? Module._sequential_access_test.bind(Module)
-                                      : Module._random_access_test.bind(Module);
-            const samples = [];
-            // 预热一次，丢弃
-            try { fn(size, Math.max(1, Math.floor(iters / 4))); } catch(_e) {}
-            // 采样5次
-            for (let i = 0; i < 5; i++) {
-                const t0 = performance.now();
-                fn(size, iters);
-                const t1 = performance.now();
-                samples.push(t1 - t0);
-            }
-            return statsOf(samples);
+        const nextTick = () => new Promise((res) => {
+            if (typeof requestAnimationFrame === 'function') requestAnimationFrame(() => res());
+            else setTimeout(res, 0);
+        });
+
+        async function measurePair(size, iters) {
+            // 先做轻量缓存驱逐，减少上一次测试的影响
+            try { Module._random_access_test(8192, 3); } catch(_e) {}
+            const t0 = performance.now(); Module._sequential_access_test(size, iters); const t1 = performance.now();
+            const seq = t1 - t0;
+            await nextTick();
+            const r0 = performance.now(); Module._random_access_test(size, iters); const r1 = performance.now();
+            const rnd = r1 - r0;
+            return { seq, rnd, ratio: (rnd > 0 && seq > 0) ? (rnd / seq) : NaN };
         }
 
         for (const size of sizes) {
             let iters = baseIterations;
-            let seqStats = await measureOne('seq', size, iters);
-            let randStats = await measureOne('rand', size, iters);
+            let pairs = [];
+            // 先做一次配对测量
+            pairs.push(await measurePair(size, iters));
 
             // 放大工作量直到稳定且可测（上限防爆）
             const maxIters = 20000;
             let guard = 0;
-            while (guard++ < 8 && (
-                seqStats.rsd > targetRsd || randStats.rsd > targetRsd ||
-                seqStats.mean < 0.2 || randStats.mean < 0.2
-            )) {
+            while (guard++ < 8) {
+                const seqTimes = pairs.map(p => p.seq).filter(x => x > 0);
+                const rndTimes = pairs.map(p => p.rnd).filter(x => x > 0);
+                const sStats = statsOf(seqTimes);
+                const rStats = statsOf(rndTimes);
+                const tooFast = (sStats.median < 0.4 || rStats.median < 0.4);
+                const tooNoisy = (sStats.rsd > targetRsd || rStats.rsd > targetRsd);
+                if (!tooFast && !tooNoisy && pairs.length >= 5) break;
                 iters = Math.min(maxIters, Math.floor(iters * 1.8));
-                seqStats = await measureOne('seq', size, iters);
-                randStats = await measureOne('rand', size, iters);
-                if (iters >= maxIters) break;
+                // 追加配对样本
+                pairs.push(await measurePair(size, iters));
             }
 
-            const ratio = (randStats.median > 0.001 && seqStats.median > 0.001)
-                ? (randStats.median / seqStats.median) : 'Too Fast';
+            // 用“配对比值”的中位数，抗Safari抖动
+            const ratioSamples = pairs.map(p => p.ratio).filter(x => isFinite(x) && x > 0);
+            ratioSamples.sort((a,b)=>a-b);
+            const ratioMedian = ratioSamples.length ? ratioSamples[Math.floor(ratioSamples.length/2)] : 'Too Fast';
+            const sStats = statsOf(pairs.map(p => p.seq));
+            const rStats = statsOf(pairs.map(p => p.rnd));
 
             results[`${size}KB`] = {
-                sequential: { time: seqStats.median, mean: seqStats.mean, rsd: seqStats.rsd, iterations: iters },
-                random: { time: randStats.median, mean: randStats.mean, rsd: randStats.rsd, iterations: iters },
-                ratio: ratio
+                sequential: { time: sStats.median, mean: sStats.mean, rsd: sStats.rsd, iterations: iters },
+                random: { time: rStats.median, mean: rStats.mean, rsd: rStats.rsd, iterations: iters },
+                ratio: ratioMedian
             };
         }
 
@@ -332,9 +339,11 @@ class WASMFingerprint {
             const scoreOf = (val, band, w) => {
                 if (!band || typeof val !== 'number') return 0;
                 const min = band.min ?? band.q25, max = band.max ?? band.q75, median = band.median ?? ((min+max)/2);
-                const width = Math.max(1e-6, (max - min) || Math.abs(median) || 1);
-                const z = Math.abs(val - median) / width;
-                return Math.max(0, (1 - Math.min(1, z))) * w;
+                const coreWidth = Math.max(1e-6, max - min);
+                const tolerance = Math.max(coreWidth * 3, Math.abs(median) * 0.3, 0.15);
+                const diff = Math.abs(val - median);
+                const score = Math.max(0, 1 - (diff / tolerance));
+                return score * w;
             };
             const scores = {};
             for (const key of Object.keys(bands)) {
@@ -346,7 +355,7 @@ class WASMFingerprint {
                 scores[key] = s;
             }
             const best = Object.entries(scores).sort((a,b)=>b[1]-a[1])[0];
-            if (best && best[1] > 0.2) { // 有一定匹配度
+            if (best && best[1] > 0.05) { // 有一定匹配度
                 const label = best[0];
                 // 支持细分标签：apple_m4_pro → family=apple, generation=m4, tier=pro
                 const parts = label.split('_');

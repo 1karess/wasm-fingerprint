@@ -129,14 +129,12 @@ class WebGPUFingerprinter {
      */
     async measureGPUTimerResolution() {
         try {
-            const commandEncoder = this.device.createCommandEncoder();
-
-            // 创建简单的计算着色器
+            // 创建简单的空操作计算着色器
             const shaderModule = this.device.createShaderModule({
                 code: `
                     @compute @workgroup_size(1)
                     fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
-                        // 空操作，用于测量基础延迟
+                        // no-op
                     }
                 `
             });
@@ -149,35 +147,47 @@ class WebGPUFingerprinter {
                 }
             });
 
-            // 多次测量计算延迟
-            const measurements = [];
-            for (let i = 0; i < 10; i++) {
-                const start = performance.now();
+            const sampleCount = 40;
+            const warmupCount = 5;
+            const samples = [];
 
+            for (let i = 0; i < sampleCount; i++) {
+                const commandEncoder = this.device.createCommandEncoder();
                 const passEncoder = commandEncoder.beginComputePass();
                 passEncoder.setPipeline(computePipeline);
                 passEncoder.dispatchWorkgroups(1);
                 passEncoder.end();
 
+                const start = performance.now();
                 this.device.queue.submit([commandEncoder.finish()]);
                 await this.device.queue.onSubmittedWorkDone();
-
                 const end = performance.now();
-                measurements.push(end - start);
+
+                if (i >= warmupCount) {
+                    samples.push(end - start);
+                }
             }
 
-            // 计算统计信息
-            const avg = measurements.reduce((a, b) => a + b) / measurements.length;
-            const min = Math.min(...measurements);
-            const max = Math.max(...measurements);
-            const stdDev = Math.sqrt(measurements.reduce((sum, x) => sum + Math.pow(x - avg, 2), 0) / measurements.length);
+            if (!samples.length) {
+                throw new Error('计时器采样不足');
+            }
+
+            // 使用截尾平均降低异常值影响
+            const sorted = [...samples].sort((a, b) => a - b);
+            const trim = Math.max(1, Math.floor(sorted.length * 0.1));
+            const trimmed = sorted.slice(trim, sorted.length - trim);
+            const usable = trimmed.length ? trimmed : sorted;
+            const sum = usable.reduce((acc, val) => acc + val, 0);
+            const average = sum / usable.length;
+            const variance = usable.reduce((acc, val) => acc + Math.pow(val - average, 2), 0) / usable.length;
+            const stdDev = Math.sqrt(Math.max(variance, 0));
 
             return {
-                average: avg,
-                minimum: min,
-                maximum: max,
+                average,
+                minimum: sorted[0],
+                maximum: sorted[sorted.length - 1],
                 standardDeviation: stdDev,
-                measurements
+                measurements: samples
             };
 
         } catch (error) {
@@ -194,7 +204,9 @@ class WebGPUFingerprinter {
             // Apple Silicon统一内存架构需要不同的测试方法
             // 使用计算着色器进行大量内存访问来测量真实带宽
 
-            const bufferSize = 128 * 1024 * 1024; // 128MB，确保足够大避免缓存影响
+            const maxAlloc = this.device.limits?.maxBufferSize || (512 * 1024 * 1024);
+            const targetSize = 512 * 1024 * 1024; // 512MB 目标，若硬件不支持会自动降级
+            const bufferSize = Math.min(targetSize, maxAlloc - (maxAlloc % 4));
             const workgroupSize = 256;
             const numWorkgroups = Math.floor(bufferSize / 4 / workgroupSize); // 4 bytes per float
 
@@ -253,7 +265,7 @@ class WebGPUFingerprinter {
             });
 
             const bandwidthResults = [];
-            const iterations = 3;
+            const iterations = 8;
 
             for (let i = 0; i < iterations; i++) {
                 const commandEncoder = this.device.createCommandEncoder();
@@ -274,18 +286,23 @@ class WebGPUFingerprinter {
                 if (executionTime > 1.0) { // 至少1ms才可信
                     // 估算带宽：每个工作项读取80次(4字节)，写入1次(4字节)
                     const bytesAccessed = numWorkgroups * workgroupSize * (80 * 4 + 1 * 4);
-                    const bandwidth = (bytesAccessed / 1024 / 1024 / 1024) / (executionTime / 1000); // GB/s
-                    bandwidthResults.push(bandwidth);
+                    const bandwidthBytesPerSec = bytesAccessed / (executionTime / 1000);
+                    bandwidthResults.push({
+                        gbPerSec: bandwidthBytesPerSec / (1024 ** 3),
+                        mbPerSec: bandwidthBytesPerSec / (1024 ** 2)
+                    });
                 }
             }
 
             storageBuffer.destroy();
 
             if (bandwidthResults.length > 0) {
-                const avgBandwidth = bandwidthResults.reduce((a, b) => a + b) / bandwidthResults.length;
+                const avgGB = bandwidthResults.reduce((a, b) => a + b.gbPerSec, 0) / bandwidthResults.length;
+                const avgMB = bandwidthResults.reduce((a, b) => a + b.mbPerSec, 0) / bandwidthResults.length;
 
                 return {
-                    bandwidth: avgBandwidth,
+                    bandwidthGB: avgGB,
+                    bandwidthMB: avgMB,
                     method: 'compute_shader_memory_intensive',
                     bufferSize,
                     workgroups: numWorkgroups,
@@ -644,13 +661,20 @@ class WebGPUFingerprinter {
 
         // 基于性能特征分析
         if (timing.memoryBandwidth) {
-            const bandwidth = timing.memoryBandwidth.bandwidth;
-            evidence.push(`内存带宽: ${bandwidth.toFixed(2)} GB/s`);
+            const { bandwidthGB, bandwidthMB } = timing.memoryBandwidth;
+            const hasGB = typeof bandwidthGB === 'number' && isFinite(bandwidthGB);
+            const hasMB = typeof bandwidthMB === 'number' && isFinite(bandwidthMB);
+            if (hasGB) {
+                evidence.push(`内存带宽: ${bandwidthGB.toFixed(2)} GB/s`);
+            } else if (hasMB) {
+                evidence.push(`内存带宽: ${(bandwidthMB / 1024).toFixed(2)} GB/s (估算)`);
+            }
 
-            if (bandwidth > 100) {
+            const bandwidthScore = hasGB ? bandwidthGB : (hasMB ? bandwidthMB / 1024 : null);
+            if (typeof bandwidthScore === 'number' && bandwidthScore > 100) {
                 evidence.push('高性能GPU特征');
                 confidence = Math.min(confidence + 10, 95);
-            } else if (bandwidth < 50) {
+            } else if (typeof bandwidthScore === 'number' && bandwidthScore < 50) {
                 evidence.push('集成显卡特征');
                 if (model === '未知GPU') {
                     model = '集成显卡';

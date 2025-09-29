@@ -1,0 +1,46 @@
+{
+  "generatedAt": "2025-09-29T22:10:00.690Z",
+  "samples": 3,
+  "bands": {
+    "apple": {
+      "l1": {
+        "min": 1.0134209987628948,
+        "median": 1.031128511155912,
+        "max": 1.046478022960676,
+        "support": 3
+      },
+      "deep": {
+        "min": 1.6522273573633073,
+        "median": 1.6566222829569373,
+        "max": 1.6621435441283297,
+        "support": 3
+      },
+      "overall": {
+        "min": 1.0134209987628948,
+        "median": 1.031128511155912,
+        "max": 1.046478022960676,
+        "support": 3
+      }
+    },
+    "intel": {
+      "l1": null,
+      "deep": null,
+      "overall": null
+    },
+    "amd": {
+      "l1": null,
+      "deep": null,
+      "overall": null
+    },
+    "nvidia": {
+      "l1": null,
+      "deep": null,
+      "overall": null
+    },
+    "other": {
+      "l1": null,
+      "deep": null,
+      "overall": null
+    }
+  }
+}

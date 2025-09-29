@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -64,13 +65,13 @@
     <div class="detection-section">
         <h2>检测方法对比</h2>
         <button onclick="runCPUDetection()">🎯 WASM CPU检测</button>
-        <button onclick="runWASMDetail()">🧠 WASM 细分识别</button>
         <button onclick="runBasicDetection()">🔧 WASM详细分析</button>
         <button onclick="runWebGLDetection()">🎨 WebGL GPU检测</button>
         <button onclick="runWebGPUDetection()">⚡ WebGPU高级检测</button>
         <button onclick="runTripleDetection()">🚀 三重检测 (终极精度)</button>
         <button onclick="analyzeSignatures()">🧬 完整特征分析</button>
         <button onclick="showDatabaseStats()">📊 设备数据库统计</button>
+        <button onclick="exportCalibrationSample()">📥 导出校准样本</button>
         <button onclick="clearResults()">清除结果</button>
     </div>
 
@@ -103,42 +104,6 @@
         function clearResults() {
             output.innerHTML = '';
         }
-
-        // WASM 细分识别（仅WASM，使用可选校准）
-        async function runWASMDetail() {
-            try {
-                addResult('=== 🧠 WASM 细分识别（独立） ===', 'enhancement');
-                const fp = await window.wasmFingerprint.generateFingerprint();
-                const detail = await window.wasmFingerprint.classifyWASM(fp);
-
-                addResult('🎯 WASM 细分结论:', 'model-guess');
-                addResult(`   家族: <span class="highlight">${detail.family || 'Unknown'}</span>`, 'model-guess');
-                if (detail.generation) addResult(`   代际: <span class="highlight">${detail.generation}</span>`, 'model-guess');
-                if (detail.tier) addResult(`   档位: <span class="highlight">${detail.tier}</span>`, 'model-guess');
-                addResult(`   置信度: <span class="highlight">${detail.confidence}%</span>`, 'model-guess');
-
-                // 关键证据
-                const ev = detail.evidence || [];
-                if (ev.length) {
-                    addResult('📋 关键证据:', 'cpu-info');
-                    ev.slice(0, 6).forEach(e => addResult(`   • ${e}`, 'cpu-info'));
-                }
-
-                // 结构与比例
-                if (detail.l1kb || detail.l2kb || detail.l3mb) {
-                    addResult(`🧬 结构: L1=${detail.l1kb || '-'}KB, L2=${detail.l2kb || '-'}KB, L3=${detail.l3mb || '-'}MB`, 'cpu-info');
-                }
-                if (typeof detail.l1Band === 'number' || typeof detail.deepBand === 'number') {
-                    addResult(`📊 比例: L1段=${(detail.l1Band??NaN).toFixed ? detail.l1Band.toFixed(3) : detail.l1Band}, 深层=${(detail.deepBand??NaN).toFixed ? detail.deepBand.toFixed(3) : detail.deepBand}`, 'cpu-info');
-                }
-
-            } catch (e) {
-                console.error(e);
-                addResult(`❌ WASM 细分识别失败: ${e.message}`, 'limitation');
-            }
-        }
-
-        
 
         async function initWASM() {
             if (wasmModule && wasmModule.runtimeInitialized) {
@@ -343,21 +308,11 @@
 
                 // 缓存特征分析
                 addResult('📊 缓存架构分析:', 'cpu-info');
-                const l1Size = Module._l1_cache_size_detection(320);
+                const l1Size = Module._l1_cache_size_detection(64);
                 const cacheLineSize = Module._cache_line_size_detection();
-                let l2Size = null;
-                let l3Size = null;
-                try { if (Module._l2_cache_size_detection) l2Size = Module._l2_cache_size_detection(20480); } catch(_e) {}
-                try { if (Module._l3_cache_size_detection) l3Size = Module._l3_cache_size_detection(64); } catch(_e) {}
 
                 addResult(`   L1缓存大小: ${l1Size}KB`, 'cpu-info');
                 addResult(`   缓存行大小: ${cacheLineSize}字节`, 'cpu-info');
-                if (typeof l2Size === 'number' && l2Size > 0) {
-                    addResult(`   L2缓存大小(估计): ${l2Size}KB`, 'cpu-info');
-                }
-                if (typeof l3Size === 'number' && l3Size > 0) {
-                    addResult(`   L3缓存大小(估计): ${l3Size}MB`, 'cpu-info');
-                }
 
                 // CPU型号推断 - 统一算法与其他检测保持一致
                 let cpuModel = "未知CPU";
@@ -492,8 +447,6 @@
                 ];
 
                 addResult('   正在分析缓存特征...', 'enhancement');
-
-                const sleep = (ms)=>new Promise(r=>setTimeout(r,ms));
 
                 for (let testCase of testSizes) {
                     let seqTimes = [];
@@ -804,8 +757,6 @@
                         Module._random_access_test(testCase.size, testCase.iterations);
                         const randTime = performance.now() - randStart;
                         randTimes.push(randTime);
-                        // 让步给UI，避免长时间阻塞
-                        await sleep(0);
                     }
 
                     // 计算平均时间和标准差
@@ -1480,7 +1431,11 @@
 
                     if (fingerprint.timing.memoryBandwidth) {
                         const mem = fingerprint.timing.memoryBandwidth;
-                        addResult(`   内存带宽: ${mem.bandwidth?.toFixed(2)} GB/s`, 'cpu-info');
+                        if (typeof mem.bandwidthGB === 'number' && isFinite(mem.bandwidthGB)) {
+                            addResult(`   内存带宽: ${mem.bandwidthGB.toFixed(2)} GB/s`, 'cpu-info');
+                        } else if (typeof mem.bandwidthMB === 'number' && isFinite(mem.bandwidthMB)) {
+                            addResult(`   内存带宽: ${mem.bandwidthMB.toFixed(2)} MB/s`, 'cpu-info');
+                        }
                     }
 
                     if (fingerprint.timing.computeLatency) {
@@ -1512,6 +1467,109 @@
 
             } catch (error) {
                 addResult(`⚠️ WebGPU检测异常: ${error.message}`, 'limitation');
+            }
+        }
+
+        async function ensureCommonLoaded() {
+            if (typeof WASMFingerprint === 'function' && window.wasmFingerprint instanceof WASMFingerprint) {
+                return;
+            }
+            if (typeof WASMFingerprint === 'function' && !window.wasmFingerprint) {
+                window.wasmFingerprint = new WASMFingerprint();
+                return;
+            }
+            await new Promise((resolve, reject) => {
+                const script = document.createElement('script');
+                script.src = `./src/common.js?v=${Date.now()}`;
+                script.dataset.autoLoaded = 'common';
+                script.onload = resolve;
+                script.onerror = () => reject(new Error('无法加载 common.js'));
+                document.head.appendChild(script);
+            });
+            if (typeof WASMFingerprint === 'function' && !(window.wasmFingerprint instanceof WASMFingerprint)) {
+                window.wasmFingerprint = new WASMFingerprint();
+            }
+        }
+
+        async function exportCalibrationSample() {
+            try {
+                addResult('=== 💾 导出校准样本 ===', 'enhancement');
+
+                await initWASM();
+                await ensureCommonLoaded();
+                let wasmHelper = window.wasmFingerprint;
+                const errors = {};
+
+                let wasmFingerprint = null;
+                try {
+                    if (!wasmHelper || typeof wasmHelper.generateFingerprint !== 'function') {
+                        throw new Error('WASM 指纹助手未加载');
+                    }
+                    wasmFingerprint = await wasmHelper.generateFingerprint();
+                } catch (err) {
+                    errors.wasm = err?.message || String(err);
+                    addResult(`⚠️ 无法获取 WASM 指纹: ${errors.wasm}`, 'limitation');
+                }
+
+                let webglFingerprint = null;
+                try {
+                    const webglFP = new WebGLFingerprinter();
+                    webglFingerprint = await webglFP.generateFingerprint();
+                    webglFP.cleanup();
+                    if (!webglFingerprint) {
+                        addResult('ℹ️ WebGL指纹不可用，样本中将记录 null。', 'model-guess');
+                    }
+                } catch (err) {
+                    errors.webgl = err?.message || String(err);
+                    addResult(`⚠️ 无法获取 WebGL 指纹: ${errors.webgl}`, 'limitation');
+                }
+
+                let webgpuFingerprint = null;
+                try {
+                    const webgpuFP = new WebGPUFingerprinter();
+                    webgpuFingerprint = await webgpuFP.generateFingerprint();
+                    webgpuFP.cleanup();
+                    if (!webgpuFingerprint) {
+                        addResult('ℹ️ WebGPU指纹不可用，样本中将记录 null。', 'model-guess');
+                    }
+                } catch (err) {
+                    errors.webgpu = err?.message || String(err);
+                    addResult(`⚠️ 无法获取 WebGPU 指纹: ${errors.webgpu}`, 'limitation');
+                }
+
+                const sample = {
+                    createdAt: new Date().toISOString(),
+                    userAgent: navigator.userAgent,
+                    wasm: wasmFingerprint,
+                    webgl: webglFingerprint,
+                    webgpu: webgpuFingerprint,
+                    meta: {
+                        page: 'enhanced-detection.html',
+                        wasmRuntimeInitialized: !!(wasmModule && wasmModule.runtimeInitialized)
+                    },
+                    errors
+                };
+
+                const blob = new Blob([JSON.stringify(sample, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+                link.href = url;
+                link.download = `calibration-sample-${timestamp}.json`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+
+                if (Object.keys(errors).length) {
+                    addResult('⚠️ 样本已导出，但包含部分缺失字段；请查看 JSON 中的 errors。', 'limitation');
+                } else {
+                    addResult('✅ 样本已导出，请将JSON放入 docs/device-database/samples/ 后运行 ingest。', 'cpu-info');
+                }
+
+            } catch (error) {
+                console.error('exportCalibrationSample failed', error);
+                addResult(`❌ 样本导出失败: ${error.message}`, 'limitation');
             }
         }
 
