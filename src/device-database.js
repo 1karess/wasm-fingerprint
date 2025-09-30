@@ -12,6 +12,7 @@ class DeviceSignatureDatabase {
             medium: 70,
             low: 50
         };
+        this.calibrationBands = undefined; // 延迟加载的校准区间
     }
 
     /**
@@ -98,7 +99,7 @@ class DeviceSignatureDatabase {
                 "MacBook Pro M4 Pro": {
                     cpu: {
                         architecture: "Apple Silicon",
-                        memoryRatio: { min: 0.8, max: 1.1 },
+                        memoryRatio: { min: 0.95, max: 1.25 },
                         cacheProfile: "unified_memory_m4",
                         performanceClass: "ultra_high_performance"
                     },
@@ -225,7 +226,7 @@ class DeviceSignatureDatabase {
         // 遍历所有设备配置文件
         for (const [brand, devices] of Object.entries(this.deviceProfiles)) {
             for (const [deviceName, profile] of Object.entries(devices)) {
-                const score = this.calculateMatchScore(profile, cpuFeatures, webglAnalysis, webgpuAnalysis);
+                const score = this.calculateMatchScore(brand, profile, cpuFeatures, webglAnalysis, webgpuAnalysis);
                 if (score.total > 50) {
                     candidates.push({
                         brand,
@@ -271,7 +272,7 @@ class DeviceSignatureDatabase {
     /**
      * 计算匹配分数
      */
-    calculateMatchScore(profile, cpuFeatures, webglAnalysis, webgpuAnalysis) {
+    calculateMatchScore(brand, profile, cpuFeatures, webglAnalysis, webgpuAnalysis) {
         const scores = { cpu: 0, webgl: 0, webgpu: 0, total: 0 };
         const details = { cpu: [], webgl: [], webgpu: [] };
         const contradictions = [];
@@ -286,40 +287,86 @@ class DeviceSignatureDatabase {
                 contradictions.push(`CPU架构不一致: got=${cpuFeatures.model}, want=${profile.cpu.architecture}`);
             }
 
-            // 内存比例匹配 (放宽M4 Pro的匹配范围)
-            if (cpuFeatures.memRatio >= profile.cpu.memoryRatio.min &&
-                cpuFeatures.memRatio <= profile.cpu.memoryRatio.max) {
-                scores.cpu += 25;
-                details.cpu.push(`内存比例匹配: ${cpuFeatures.memRatio.toFixed(3)}`);
-            } else {
-                const diff = Math.min(
-                    Math.abs(cpuFeatures.memRatio - profile.cpu.memoryRatio.min),
-                    Math.abs(cpuFeatures.memRatio - profile.cpu.memoryRatio.max)
-                );
-                // 对Apple Silicon更宽容的匹配
-                if (profile.cpu.architecture === "Apple Silicon" && diff < 0.3) {
-                    scores.cpu += 20;
-                    details.cpu.push(`内存比例近似匹配: ${cpuFeatures.memRatio.toFixed(3)}`);
+            const ratioValue = (v) => (typeof v === 'number' && isFinite(v)) ? v : null;
+            const ratioContributions = [
+                {
+                    value: ratioValue(cpuFeatures.memRatio),
+                    range: profile.cpu.memoryRatio || {},
+                    bandType: 'overall',
+                    maxScore: 25,
+                    exactDetail: (val) => `内存比例匹配: ${val.toFixed(3)}`,
+                    nearDetail: (detail) => detail.replace('内存比例', '内存比例')
+                },
+                {
+                    value: ratioValue(cpuFeatures.memRatioDeep),
+                    range: profile.cpu.memoryRatioDeep || profile.cpu.memoryRatio || {},
+                    bandType: 'deep',
+                    maxScore: 18,
+                    exactDetail: (val) => `深层内存比例匹配: ${val.toFixed(3)}`,
+                    nearDetail: (detail) => detail.replace('内存比例', '深层比例')
+                },
+                {
+                    value: ratioValue(cpuFeatures.memRatioL1),
+                    range: profile.cpu.memoryRatioL1 || profile.cpu.memoryRatio || {},
+                    bandType: 'l1',
+                    maxScore: 12,
+                    exactDetail: (val) => `L1内存比例匹配: ${val.toFixed(3)}`,
+                    nearDetail: (detail) => detail.replace('内存比例', 'L1比例')
+                }
+            ];
+
+            for (const entry of ratioContributions) {
+                if (entry.value === null) continue;
+                const { range, bandType, maxScore } = entry;
+                const hasRange = typeof range.min === 'number' && typeof range.max === 'number';
+                if (hasRange && entry.value >= range.min && entry.value <= range.max) {
+                    scores.cpu += maxScore;
+                    details.cpu.push(entry.exactDetail(entry.value));
+                    continue;
+                }
+
+                const calMatch = this._matchCalibrationBand(brand, profile, entry.value, bandType, maxScore);
+                if (calMatch?.match) {
+                    scores.cpu += calMatch.score;
+                    const detailText = calMatch.detail.includes('校准区间')
+                        ? entry.nearDetail(calMatch.detail)
+                        : calMatch.detail;
+                    details.cpu.push(detailText);
                 } else {
-                    scores.cpu += Math.max(0, 25 - diff * 10);
-                    details.cpu.push(`内存比例部分匹配: ${cpuFeatures.memRatio.toFixed(3)}`);
-                    if (diff > 0.6) contradictions.push(`CPU内存比例偏差较大: diff=${diff.toFixed(2)}`);
+                    const diff = this._distanceToRange(entry.value, range.min, range.max, calMatch?.deviation);
+                    const baseScore = Math.max(0, maxScore * 0.7 - diff * maxScore * 0.5);
+                    if (baseScore > 0) {
+                        scores.cpu += baseScore;
+                        details.cpu.push(entry.exactDetail(entry.value));
+                    } else {
+                        details.cpu.push(entry.exactDetail(entry.value));
+                        if (diff > 0.6) {
+                            contradictions.push(`CPU内存比例偏差较大 (${bandType}): diff=${diff.toFixed(2)}`);
+                        }
+                    }
                 }
             }
         }
 
         // WebGL特征匹配
         if (webglAnalysis && profile.gpu.webgl) {
-            // 厂商匹配
-            if (webglAnalysis.rawVendor &&
-                webglAnalysis.rawVendor.toLowerCase().includes(profile.gpu.webgl.vendor.toLowerCase())) {
+            const expectedVendor = this._normalizeVendorToken(profile.gpu.webgl.vendor);
+            const analysisVendor = this._normalizeVendorToken(webglAnalysis.normalizedVendor || webglAnalysis.rawVendor);
+
+            if (expectedVendor && analysisVendor && expectedVendor === analysisVendor) {
                 scores.webgl += 20;
-                details.webgl.push(`厂商匹配: ${webglAnalysis.rawVendor}`);
+                details.webgl.push(`厂商匹配: ${analysisVendor}`);
             } else if (webglAnalysis.rawVendor) {
-                contradictions.push(`WebGL厂商不一致: got=${webglAnalysis.rawVendor}, want~=${profile.gpu.webgl.vendor}`);
+                const raw = webglAnalysis.rawVendor.toLowerCase();
+                const want = (profile.gpu.webgl.vendor || '').toLowerCase();
+                if (want && raw.includes(want)) {
+                    scores.webgl += 18;
+                    details.webgl.push(`厂商近似匹配: ${webglAnalysis.rawVendor}`);
+                } else {
+                    contradictions.push(`WebGL厂商不一致: got=${webglAnalysis.rawVendor}, want~=${profile.gpu.webgl.vendor}`);
+                }
             }
 
-            // 渲染器匹配
             if (webglAnalysis.rawRenderer && profile.gpu.webgl.renderer) {
                 if (profile.gpu.webgl.renderer.test(webglAnalysis.rawRenderer)) {
                     scores.webgl += 25;
@@ -327,7 +374,6 @@ class DeviceSignatureDatabase {
                 }
             }
 
-            // 置信度加成
             if (webglAnalysis.confidence > 80) {
                 scores.webgl += 10;
                 details.webgl.push(`高置信度WebGL检测: ${webglAnalysis.confidence}%`);
@@ -336,24 +382,33 @@ class DeviceSignatureDatabase {
 
         // WebGPU特征匹配
         if (webgpuAnalysis && profile.gpu.webgpu) {
-            // 厂商匹配
-            if (webgpuAnalysis.rawAdapter && webgpuAnalysis.rawAdapter.vendor &&
-                webgpuAnalysis.rawAdapter.vendor.toLowerCase().includes(profile.gpu.webgpu.vendor)) {
+            const expectedVendor = this._normalizeVendorToken(profile.gpu.webgpu.vendor);
+            const adapter = webgpuAnalysis.rawAdapter || {};
+            const actualVendor = this._normalizeVendorToken(webgpuAnalysis.normalizedVendor || adapter.vendor);
+
+            if (expectedVendor && actualVendor && expectedVendor === actualVendor) {
                 scores.webgpu += 25;
-                details.webgpu.push(`WebGPU厂商匹配: ${webgpuAnalysis.rawAdapter.vendor}`);
-            } else if (webgpuAnalysis.rawAdapter && webgpuAnalysis.rawAdapter.vendor) {
-                contradictions.push(`WebGPU厂商不一致: got=${webgpuAnalysis.rawAdapter.vendor}, want~=${profile.gpu.webgpu.vendor}`);
+                details.webgpu.push(`WebGPU厂商匹配: ${actualVendor}`);
+            } else if (adapter.vendor) {
+                const raw = adapter.vendor.toLowerCase();
+                const want = (profile.gpu.webgpu.vendor || '').toLowerCase();
+                if (want && raw.includes(want)) {
+                    scores.webgpu += 20;
+                    details.webgpu.push(`WebGPU厂商近似匹配: ${adapter.vendor}`);
+                } else {
+                    contradictions.push(`WebGPU厂商不一致: got=${adapter.vendor}, want~=${profile.gpu.webgpu.vendor}`);
+                }
             }
 
-            // 架构匹配
-            if (webgpuAnalysis.rawAdapter && webgpuAnalysis.rawAdapter.architecture &&
-                profile.gpu.webgpu.architecture &&
-                webgpuAnalysis.rawAdapter.architecture.includes(profile.gpu.webgpu.architecture)) {
-                scores.webgpu += 20;
-                details.webgpu.push(`架构匹配: ${webgpuAnalysis.rawAdapter.architecture}`);
+            if (adapter.architecture && profile.gpu.webgpu.architecture) {
+                if (this._architectureMatches(adapter.architecture, profile.gpu.webgpu.architecture)) {
+                    scores.webgpu += 20;
+                    details.webgpu.push(`架构匹配: ${adapter.architecture}`);
+                } else {
+                    contradictions.push(`WebGPU架构不一致: got=${adapter.architecture}, want~=${profile.gpu.webgpu.architecture}`);
+                }
             }
 
-            // 置信度加成
             if (webgpuAnalysis.confidence > 80) {
                 scores.webgpu += 10;
                 details.webgpu.push(`高置信度WebGPU检测: ${webgpuAnalysis.confidence}%`);
@@ -380,11 +435,11 @@ class DeviceSignatureDatabase {
         // 应用阈值调整
         if (finalConfidence >= this.confidenceThresholds.high) {
             return Math.min(finalConfidence, 95);
-        } else if (finalConfidence >= this.confidenceThresholds.medium) {
-            return finalConfidence * 0.9;
-        } else {
-            return finalConfidence * 0.8;
         }
+        if (finalConfidence >= this.confidenceThresholds.medium) {
+            return Math.max(60, finalConfidence);
+        }
+        return Math.max(40, finalConfidence * 0.85);
     }
 
     /**
@@ -413,6 +468,123 @@ class DeviceSignatureDatabase {
         }
 
         return evidence;
+    }
+
+    _distanceToRange(value, min, max, fallback = null) {
+        if (typeof value !== 'number' || !isFinite(value)) return 1;
+        const hasMin = typeof min === 'number' && isFinite(min);
+        const hasMax = typeof max === 'number' && isFinite(max);
+        if (hasMin && hasMax) {
+            if (value >= min && value <= max) return 0;
+            if (value < min) return Math.abs(value - min);
+            return Math.abs(value - max);
+        }
+        if (fallback !== null && typeof fallback === 'number') return Math.abs(fallback);
+        if (hasMin) return Math.abs(value - min);
+        if (hasMax) return Math.abs(value - max);
+        return 1;
+    }
+
+    _matchCalibrationBand(brand, profile, value, bandType = 'overall', maxScore = 24) {
+        const bands = this.getCalibrationBands();
+        if (!bands || typeof value !== 'number' || !isFinite(value)) return null;
+
+        const key = this._resolveCalibrationKey(brand, profile);
+        const fam = bands?.[key];
+        const band = fam?.[bandType] || fam?.overall || fam?.l1 || fam?.deep;
+        if (!band) return null;
+
+        const min = typeof band.min === 'number' ? band.min : band.q25;
+        const max = typeof band.max === 'number' ? band.max : band.q75;
+        const median = typeof band.median === 'number' ? band.median : ((min + max) / 2);
+        if (typeof min !== 'number' || typeof max !== 'number') return null;
+
+        const width = Math.max(1e-6, max - min);
+        const tolerance = Math.max(width * 0.6, Math.abs(median) * 0.08, 0.1);
+        const extendedMin = min - tolerance;
+        const extendedMax = max + tolerance;
+
+        const label = `${key}/${bandType}`;
+
+        if (value >= min && value <= max) {
+            return { match: true, score: maxScore, detail: `内存比例命中校准区间(${label})` };
+        }
+
+        if (value >= extendedMin && value <= extendedMax) {
+            const deviation = Math.min(Math.abs(value - min), Math.abs(value - max));
+            const normalized = Math.max(0, 1 - (deviation / Math.max(tolerance, 1e-6)));
+            const floorScore = maxScore * 0.75;
+            const score = floorScore + normalized * (maxScore - floorScore);
+            return { match: true, score, detail: `内存比例接近校准区间(${label})`, deviation };
+        }
+
+        const deviation = Math.min(Math.abs(value - min), Math.abs(value - max));
+        return { match: false, deviation };
+    }
+
+    getCalibrationBands() {
+        try {
+            if (typeof window !== 'undefined') {
+                const fp = window.wasmFingerprint;
+                if (fp && fp._calibration && fp._calibration.bands) {
+                    this.calibrationBands = fp._calibration.bands;
+                    return this.calibrationBands;
+                }
+                if (window.__WASM_CALIBRATION__ && window.__WASM_CALIBRATION__.bands) {
+                    this.calibrationBands = window.__WASM_CALIBRATION__.bands;
+                    return this.calibrationBands;
+                }
+            }
+        } catch (_e) {}
+        return this.calibrationBands || null;
+    }
+
+    _resolveCalibrationKey(brand, profile) {
+        const lowerBrand = (brand || '').toLowerCase();
+        if (['apple', 'intel', 'amd', 'nvidia'].includes(lowerBrand)) return lowerBrand;
+
+        const arch = profile?.cpu?.architecture?.toLowerCase?.() || '';
+        if (arch.includes('apple')) return 'apple';
+        if (arch.includes('intel')) return 'intel';
+        if (arch.includes('amd')) return 'amd';
+
+        return lowerBrand || 'other';
+    }
+
+    _normalizeVendorToken(value) {
+        if (!value) return '';
+        const text = Array.isArray(value) ? value.join(' ') : String(value);
+        const lower = text.toLowerCase();
+        if (lower.includes('apple') || lower.includes('metal')) return 'apple';
+        if (lower.includes('nvidia') || lower.includes('geforce') || lower.includes('rtx')) return 'nvidia';
+        if (lower.includes('amd') || lower.includes('radeon') || lower.includes('rdna')) return 'amd';
+        if (lower.includes('intel') || lower.includes('iris') || lower.includes('uhd')) return 'intel';
+        if (lower.includes('qualcomm') || lower.includes('adreno')) return 'qualcomm';
+        if (lower.includes('arm') || lower.includes('mali')) return 'arm';
+        return lower.trim();
+    }
+
+    _architectureMatches(actual, expected) {
+        if (!actual || !expected) return false;
+        const clean = (str) => str.toLowerCase().replace(/[^a-z0-9]/g, '');
+        const a = clean(actual);
+        const e = clean(expected);
+        if (!a || !e) return false;
+        if (a.includes(e) || e.includes(a)) return true;
+
+        const synonymGroups = [
+            ['metal3', 'metal', 'applegpu'],
+            ['applegpu', 'metal'],
+            ['intelgpu', 'intel'],
+            ['nvidiagpu', 'nvidia'],
+            ['amdgpu', 'amd', 'rdna']
+        ];
+        for (const group of synonymGroups) {
+            if (group.some(tag => a.includes(tag)) && group.some(tag => e.includes(tag))) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
@@ -504,7 +676,7 @@ class DeviceSignatureDatabase {
 
         for (const [brand, devices] of Object.entries(this.deviceProfiles)) {
             for (const [deviceName, profile] of Object.entries(devices)) {
-                const score = this.calculateMatchScore(profile, cpuFeatures, webglAnalysis, webgpuAnalysis);
+                const score = this.calculateMatchScore(brand, profile, cpuFeatures, webglAnalysis, webgpuAnalysis);
                 if (score.total >= threshold) {
                     similar.push({
                         brand,

@@ -91,10 +91,11 @@ function ingest() {
     const qs = quantiles(vals);
     // Expand to a band by ± IQR factor
     const iqr = qs.q75 - qs.q25;
+    const expansion = Math.max(0.25 * iqr, 0.08);
     return {
-      min: Math.max(0, qs.q25 - 0.25 * iqr),
+      min: Math.max(0, qs.q25 - expansion),
       median: qs.median,
-      max: qs.q75 + 0.25 * iqr,
+      max: qs.q75 + expansion,
       support: vals.length
     };
   }
@@ -186,4 +187,3 @@ const cmd = process.argv[2] || 'ingest';
 if (cmd === 'ingest') ingest();
 else if (cmd === 'validate') validate();
 else { console.log('Usage: node tools/calibrate.js [ingest|validate]'); process.exit(1); }
-

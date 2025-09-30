@@ -83,11 +83,11 @@
 
     <div id="output" class="results"></div>
 
-    <script src="./build/wasm-fingerprint.js"></script>
-    <script src="./src/common.js"></script>
-    <script src="./src/webgl-detection.js"></script>
-    <script src="./src/webgpu-detection.js"></script>
-    <script src="./src/device-database.js"></script>
+    <script src="./build/wasm-fingerprint.js?v=20250930"></script>
+    <script src="./src/common.js?v=20250930"></script>
+    <script src="./src/webgl-detection.js?v=20250930"></script>
+    <script src="./src/webgpu-detection.js?v=20250930"></script>
+    <script src="./src/device-database.js?v=20250930"></script>
     <script>
         const output = document.getElementById('output');
         let wasmModule = null;
@@ -1505,6 +1505,8 @@
                     if (!wasmHelper || typeof wasmHelper.generateFingerprint !== 'function') {
                         throw new Error('WASM 指纹助手未加载');
                     }
+                    // 提前加载校准数据，方便后续数据库打分利用阈值
+                    try { await wasmHelper.loadCalibration(); } catch (_e) {}
                     wasmFingerprint = await wasmHelper.generateFingerprint();
                 } catch (err) {
                     errors.wasm = err?.message || String(err);
@@ -1581,11 +1583,40 @@
 
                 // 1. WASM CPU检测
                 addResult('🔧 第一阶段: WASM CPU微架构检测', 'cpu-info');
-                const Module = await initWASM();
+                await initWASM();
+                await ensureCommonLoaded();
 
-                // 简化的CPU特征提取（复用现有代码）
-                const cpuFeatures = await extractCPUFeatures(Module);
+                const wasmHelper = window.wasmFingerprint;
+                if (!wasmHelper || typeof wasmHelper.generateFingerprint !== 'function') {
+                    throw new Error('WASM 指纹助手未加载');
+                }
+
+                let calibrationData = null;
+                try {
+                    calibrationData = await wasmHelper.loadCalibration();
+                } catch (_e) {
+                    calibrationData = null;
+                }
+
+                const wasmSummary = await buildWasmFingerprintSummary(wasmHelper);
+                const wasmFingerprintData = wasmSummary.fingerprint;
+                wasmFingerprint = wasmFingerprintData;
+                const cpuFeatures = wasmSummary.cpuFeatures;
+                const cpuAnalysis = wasmSummary.cpuAnalysis;
+
                 addResult(`✓ CPU特征: ${cpuFeatures.model} (置信度: ${cpuFeatures.confidence}%)`, 'cpu-info');
+
+                if (typeof cpuFeatures.memRatio === 'number') {
+                    addResult(`   内存访问比例: ${cpuFeatures.memRatio.toFixed(3)}`, 'cpu-info');
+                }
+
+                if (typeof wasmFingerprintData?.structure?.l1_kb === 'number') {
+                    addResult(`   探测到的L1缓存: ${wasmFingerprintData.structure.l1_kb}KB`, 'cpu-info');
+                }
+
+                if (Array.isArray(cpuAnalysis?.evidence) && cpuAnalysis.evidence.length) {
+                    cpuAnalysis.evidence.forEach(e => addResult(`   • ${e}`, 'cpu-info'));
+                }
 
                 // 2. WebGL GPU检测
                 addResult('🎨 第二阶段: WebGL GPU检测', 'enhancement');
@@ -1619,6 +1650,10 @@
                     deviceDatabase = new DeviceSignatureDatabase();
                 }
 
+                if (calibrationData?.bands) {
+                    deviceDatabase.calibrationBands = calibrationData.bands;
+                }
+
                 // 使用数据库进行精确识别
                 const databaseResult = deviceDatabase.identifyDevice(cpuFeatures, webglAnalysis, webgpuAnalysis);
                 const deviceIdentification = enhanceWithDatabase(cpuFeatures, webglAnalysis, webgpuAnalysis, databaseResult);
@@ -1643,38 +1678,47 @@
             }
         }
 
-        // 提取CPU特征（简化版）
-        async function extractCPUFeatures(Module) {
-            try {
-                // 复用现有的分析逻辑，但简化输出
-                const seqTest = timedTest(Module._sequential_access_test.bind(Module), 16, 1000);
-                const randTest = timedTest(Module._random_access_test.bind(Module), 16, 1000);
+        // 生成WASM指纹摘要（供三重检测复用）
+        async function buildWasmFingerprintSummary(wasmHelper) {
+            if (!wasmHelper || typeof wasmHelper.generateFingerprint !== 'function') {
+                throw new Error('WASM 指纹助手未初始化');
+            }
 
-                const memRatio = randTest.time > 0.001 && seqTest.time > 0.001 ?
-                    randTest.time / seqTest.time : 1.0;
+            const fingerprint = await wasmHelper.generateFingerprint();
+            const cpuAnalysis = typeof wasmHelper.analyzeCPUType === 'function'
+                ? wasmHelper.analyzeCPUType(fingerprint)
+                : { family: '未知架构', confidence: 50 };
 
-                let cpuClass = "未知架构";
-                let confidence = 50;
-
-                if (typeof memRatio === 'number') {
-                    // 统一使用与快速检测完全相同的阈值，确保一致性
-                    if (memRatio >= 0.5 && memRatio < 1.6) {  // 与runCPUDetection完全一致
-                        cpuClass = "Apple Silicon";
-                        confidence = 85;
-                    } else if (memRatio >= 1.6 && memRatio <= 2.5) {
-                        cpuClass = "Intel高性能CPU";
-                        confidence = 80;
-                    } else if (memRatio > 2.5 && memRatio <= 4.0) {
-                        cpuClass = "AMD Ryzen或主流CPU";
-                        confidence = 75;
+            let memRatio = null;
+            if (typeof wasmHelper._safeOverallRatio === 'function') {
+                memRatio = wasmHelper._safeOverallRatio(fingerprint.memoryResults);
+            }
+            if (typeof memRatio !== 'number' || !isFinite(memRatio)) {
+                if (typeof cpuAnalysis.overall === 'number' && isFinite(cpuAnalysis.overall)) {
+                    memRatio = cpuAnalysis.overall;
+                } else {
+                    const ratios = fingerprint?.memoryResults || {};
+                    const values = Object.values(ratios).map(v => v?.ratio).filter(x => typeof x === 'number');
+                    if (values.length) {
+                        memRatio = values.reduce((a, b) => a + b, 0) / values.length;
                     }
                 }
-
-                return { model: cpuClass, confidence, memRatio };
-
-            } catch (error) {
-                return { model: "检测失败", confidence: 0, memRatio: 0 };
             }
+
+            const l1Band = (typeof cpuAnalysis.l1Band === 'number' && isFinite(cpuAnalysis.l1Band))
+                ? cpuAnalysis.l1Band : null;
+            const deepBand = (typeof cpuAnalysis.deepBand === 'number' && isFinite(cpuAnalysis.deepBand))
+                ? cpuAnalysis.deepBand : null;
+
+            const cpuFeatures = {
+                model: cpuAnalysis.family || '未知架构',
+                confidence: cpuAnalysis.confidence ?? 50,
+                memRatio: (typeof memRatio === 'number' && isFinite(memRatio)) ? memRatio : null,
+                memRatioL1: l1Band,
+                memRatioDeep: deepBand
+            };
+
+            return { fingerprint, cpuFeatures, cpuAnalysis };
         }
 
         // 时间测试函数
@@ -1684,6 +1728,7 @@
             const endTime = performance.now();
             return { result, time: endTime - startTime };
         }
+
 
         // 综合设备识别分析
         function analyzeDeviceIdentity(cpuFeatures, webglAnalysis, webgpuAnalysis) {

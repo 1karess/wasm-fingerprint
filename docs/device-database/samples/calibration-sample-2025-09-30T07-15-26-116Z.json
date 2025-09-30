@@ -1,0 +1,322 @@
+{
+  "createdAt": "2025-09-30T07:15:26.115Z",
+  "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36",
+  "wasm": {
+    "features": {
+      "mem_ratio_16KB": 1,
+      "mem_ratio_32KB": 1,
+      "mem_ratio_64KB": 1.023360286614348,
+      "mem_ratio_256KB": 1.6533166456242627,
+      "float_precision": 2107.286993285348,
+      "integer_opt": 568132,
+      "vector_comp": 51.45729015900539,
+      "branch_pred": 38128193,
+      "l1_kb": 192,
+      "l2_kb": 640,
+      "l3_mb": 8,
+      "cache_line": 128,
+      "tlb_entries": 64,
+      "stride_ms": {
+        "64": 0.10000014305114746,
+        "128": 0.10000014305114746,
+        "256": 0.20000004768371582,
+        "512": 0.20000004768371582,
+        "4096": 0.2999999523162842
+      },
+      "mem_ratio_l1_band": 1.011680143307174,
+      "mem_ratio_deep": 1.6533166456242627
+    },
+    "memoryResults": {
+      "16KB": {
+        "sequential": {
+          "time": 4.8999998569488525,
+          "mean": 9.128571408135551,
+          "rsd": 1.1028441992809972,
+          "iterations": 20000
+        },
+        "random": {
+          "time": 4.5,
+          "mean": 8.885714292526245,
+          "rsd": 1.102155405484685,
+          "iterations": 20000
+        },
+        "ratio": 1
+      },
+      "32KB": {
+        "sequential": {
+          "time": 9.5,
+          "mean": 17.614285673413956,
+          "rsd": 1.111609855306976,
+          "iterations": 20000
+        },
+        "random": {
+          "time": 9.299999952316284,
+          "mean": 17.81428565297808,
+          "rsd": 1.1319671881068663,
+          "iterations": 20000
+        },
+        "ratio": 1
+      },
+      "64KB": {
+        "sequential": {
+          "time": 19,
+          "mean": 35.328571455819265,
+          "rsd": 1.115253879510461,
+          "iterations": 20000
+        },
+        "random": {
+          "time": 19.59999990463257,
+          "mean": 36.15714280945914,
+          "rsd": 1.113218249840958,
+          "iterations": 20000
+        },
+        "ratio": 1.023360286614348
+      },
+      "256KB": {
+        "sequential": {
+          "time": 79.90000009536743,
+          "mean": 146.7142857483455,
+          "rsd": 1.112485445011707,
+          "iterations": 20000
+        },
+        "random": {
+          "time": 132.10000014305115,
+          "mean": 242.48571423121862,
+          "rsd": 1.1151241122471756,
+          "iterations": 20000
+        },
+        "ratio": 1.6533166456242627
+      }
+    },
+    "computeResults": {
+      "float": {
+        "result": 2107.286993285348,
+        "time": 0.10000014305114746
+      },
+      "integer": {
+        "result": 568132,
+        "time": 0.09999990463256836
+      },
+      "vector": {
+        "result": 51.45729015900539,
+        "time": 0.09999990463256836
+      },
+      "branch": {
+        "result": 38128193,
+        "time": 0
+      }
+    },
+    "structure": {
+      "l1_kb": 192,
+      "l2_kb": 640,
+      "l3_mb": 8,
+      "cache_line": 128,
+      "tlb_entries": 64
+    },
+    "hash": "20b1dffb"
+  },
+  "webgl": {
+    "basic": {
+      "vendor": "WebKit",
+      "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M4 Pro, Unspecified Version)",
+      "version": "WebGL 1.0 (OpenGL ES 2.0 Chromium)",
+      "shadingLanguageVersion": "WebGL GLSL ES 1.0 (OpenGL ES GLSL ES 1.0 Chromium)"
+    },
+    "extensions": {
+      "all": [
+        "ANGLE_instanced_arrays",
+        "EXT_blend_minmax",
+        "EXT_clip_control",
+        "EXT_color_buffer_half_float",
+        "EXT_depth_clamp",
+        "EXT_disjoint_timer_query",
+        "EXT_float_blend",
+        "EXT_frag_depth",
+        "EXT_polygon_offset_clamp",
+        "EXT_shader_texture_lod",
+        "EXT_texture_compression_bptc",
+        "EXT_texture_compression_rgtc",
+        "EXT_texture_filter_anisotropic",
+        "EXT_texture_mirror_clamp_to_edge",
+        "EXT_sRGB",
+        "KHR_parallel_shader_compile",
+        "OES_element_index_uint",
+        "OES_fbo_render_mipmap",
+        "OES_standard_derivatives",
+        "OES_texture_float",
+        "OES_texture_float_linear",
+        "OES_texture_half_float",
+        "OES_texture_half_float_linear",
+        "OES_vertex_array_object",
+        "WEBGL_blend_func_extended",
+        "WEBGL_color_buffer_float",
+        "WEBGL_compressed_texture_astc",
+        "WEBGL_compressed_texture_etc",
+        "WEBGL_compressed_texture_etc1",
+        "WEBGL_compressed_texture_pvrtc",
+        "WEBGL_compressed_texture_s3tc",
+        "WEBGL_compressed_texture_s3tc_srgb",
+        "WEBGL_debug_renderer_info",
+        "WEBGL_debug_shaders",
+        "WEBGL_depth_texture",
+        "WEBGL_draw_buffers",
+        "WEBGL_lose_context",
+        "WEBGL_multi_draw",
+        "WEBGL_polygon_mode"
+      ],
+      "important": [
+        "EXT_texture_filter_anisotropic",
+        "EXT_sRGB",
+        "OES_texture_float",
+        "OES_texture_half_float",
+        "WEBGL_compressed_texture_etc1",
+        "WEBGL_compressed_texture_s3tc",
+        "WEBGL_debug_renderer_info",
+        "WEBGL_depth_texture",
+        "WEBGL_lose_context"
+      ],
+      "count": 39
+    },
+    "canvasHash": "-6969db11",
+    "performance": {
+      "simpleRender": 0.20000004768371582,
+      "complexRender": 0.5999999046325684,
+      "textureOps": 0
+    },
+    "precision": {
+      "vertexHighFloat": {},
+      "vertexMediumFloat": {},
+      "vertexLowFloat": {},
+      "fragmentHighFloat": {},
+      "fragmentMediumFloat": {},
+      "fragmentLowFloat": {}
+    },
+    "limits": {
+      "maxTextureSize": 16384,
+      "maxViewportDims": {
+        "0": 16384,
+        "1": 16384
+      },
+      "maxVertexAttribs": 16,
+      "maxVertexTextureImageUnits": 16,
+      "maxTextureImageUnits": 16,
+      "maxCombinedTextureImageUnits": 32,
+      "maxFragmentUniformVectors": 1024,
+      "maxVertexUniformVectors": 1024,
+      "maxVaryingVectors": 30,
+      "aliasedLineWidthRange": {
+        "0": 1,
+        "1": 1
+      },
+      "aliasedPointSizeRange": {
+        "0": 1,
+        "1": 511
+      }
+    },
+    "timestamp": 1759216525629,
+    "signatureHash": "4fd38d04"
+  },
+  "webgpu": {
+    "adapter": {
+      "vendor": "apple",
+      "architecture": "metal-3",
+      "device": "",
+      "description": "",
+      "subgroupMinSize": 4,
+      "subgroupMaxSize": 64
+    },
+    "capabilities": {
+      "features": [
+        "core-features-and-limits"
+      ],
+      "limits": {
+        "maxTextureSize": 8192,
+        "maxBufferSize": 268435456,
+        "maxStorageBufferSize": 134217728,
+        "maxComputeWorkgroupSizeX": 256,
+        "maxComputeWorkgroupSizeY": 256,
+        "maxComputeWorkgroupSizeZ": 64,
+        "maxComputeInvocationsPerWorkgroup": 256,
+        "maxComputeWorkgroupsPerDimension": 65535
+      }
+    },
+    "timing": {
+      "timerResolution": {
+        "average": 2.424137937611547,
+        "minimum": 2.299999952316284,
+        "maximum": 2.6000001430511475,
+        "standardDeviation": 0.04279197437977565,
+        "measurements": [
+          2.4000000953674316,
+          2.4000000953674316,
+          2.5,
+          2.3999998569488525,
+          2.4000000953674316,
+          2.3999998569488525,
+          2.5,
+          2.4000000953674316,
+          2.4000000953674316,
+          2.5,
+          2.3999998569488525,
+          2.4000000953674316,
+          2.299999952316284,
+          2.5,
+          2.4000000953674316,
+          2.3999998569488525,
+          2.4000000953674316,
+          2.3999998569488525,
+          2.6000001430511475,
+          2.299999952316284,
+          2.5,
+          2.4000000953674316,
+          2.5,
+          2.299999952316284,
+          2.5,
+          2.3999998569488525,
+          2.4000000953674316,
+          2.4000000953674316,
+          2.5,
+          2.3999998569488525,
+          2.4000000953674316,
+          2.3999998569488525,
+          2.5,
+          2.4000000953674316,
+          2.4000000953674316
+        ]
+      },
+      "memoryBandwidth": {
+        "bandwidthGB": 492.700731070258,
+        "bandwidthMB": 504525.54861594416,
+        "method": "compute_shader_memory_intensive",
+        "bufferSize": 268435456,
+        "workgroups": 262144,
+        "validTests": 1,
+        "rawResults": [
+          {
+            "gbPerSec": 492.700731070258,
+            "mbPerSec": 504525.54861594416
+          }
+        ]
+      },
+      "computeLatency": {
+        "simple": 1.2000000476837158,
+        "math_intensive": 0.09999990463256836,
+        "memory_intensive": 2.6000001430511475
+      },
+      "cacheProfile": {
+        "sequential": 8.599999904632568,
+        "stride_4": 2.6000001430511475,
+        "stride_16": 2.5999999046325684,
+        "random": 2.4000000953674316,
+        "cacheEfficiency": 0.27906978162576745
+      }
+    },
+    "timestamp": 1759216526115,
+    "signatureHash": "1ab6ed3"
+  },
+  "meta": {
+    "page": "enhanced-detection.html",
+    "wasmRuntimeInitialized": true
+  },
+  "errors": {}
+}

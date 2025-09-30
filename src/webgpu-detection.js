@@ -616,13 +616,14 @@ class WebGPUFingerprinter {
         let model = '未知GPU';
 
         const adapter = fingerprint.adapter || {};
+        const normalizedVendor = this._normalizeAdapterVendor(adapter);
         const timing = fingerprint.timing || {};
 
         // 基于适配器信息分析
         if (adapter.vendor) {
             evidence.push(`GPU厂商: ${adapter.vendor}`);
 
-            if (adapter.vendor.toLowerCase().includes('apple')) {
+            if (normalizedVendor === 'apple') {
                 model = 'Apple GPU';
                 confidence = 85;
 
@@ -642,17 +643,17 @@ class WebGPUFingerprinter {
                     }
                 }
             }
-            else if (adapter.vendor.toLowerCase().includes('intel')) {
+            else if (normalizedVendor === 'intel') {
                 model = 'Intel GPU';
                 confidence = 80;
                 evidence.push('Intel GPU特征');
             }
-            else if (adapter.vendor.toLowerCase().includes('nvidia')) {
+            else if (normalizedVendor === 'nvidia') {
                 model = 'NVIDIA GPU';
                 confidence = 80;
                 evidence.push('NVIDIA GPU特征');
             }
-            else if (adapter.vendor.toLowerCase().includes('amd')) {
+            else if (normalizedVendor === 'amd') {
                 model = 'AMD GPU';
                 confidence = 80;
                 evidence.push('AMD GPU特征');
@@ -709,12 +710,33 @@ class WebGPUFingerprinter {
             }
         }
 
-        return {
+        const analysis = {
             model,
             confidence,
             evidence,
-            rawAdapter: adapter
+            rawAdapter: adapter,
+            normalizedVendor
         };
+
+        fingerprint.normalizedVendor = normalizedVendor;
+
+        return analysis;
+    }
+
+    _normalizeAdapterVendor(adapter) {
+        const vendor = (adapter?.vendor || '').toLowerCase();
+        const arch = (adapter?.architecture || '').toLowerCase();
+        const desc = (adapter?.description || '').toLowerCase();
+        const combined = `${vendor} ${arch} ${desc}`;
+
+        if (combined.includes('apple') || combined.includes('metal')) return 'apple';
+        if (combined.includes('nvidia') || combined.includes('geforce') || combined.includes('rtx')) return 'nvidia';
+        if (combined.includes('amd') || combined.includes('radeon') || combined.includes('rdna')) return 'amd';
+        if (combined.includes('intel')) return 'intel';
+        if (combined.includes('qualcomm') || combined.includes('adreno')) return 'qualcomm';
+        if (combined.includes('arm') || combined.includes('mali')) return 'arm';
+
+        return vendor || 'unknown';
     }
 
     /**

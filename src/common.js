@@ -123,9 +123,12 @@ class WASMFingerprint {
                 const res = await fetch('./docs/device-database/calibration.json', { cache: 'no-store' });
                 if (res.ok) {
                     this._calibration = await res.json();
+                    if (typeof window !== 'undefined') {
+                        window.__WASM_CALIBRATION__ = this._calibration;
+                    }
                     return this._calibration;
                 }
-            }
+        }
         } catch (_e) {}
         this._calibration = null;
         return null;

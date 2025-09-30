@@ -412,6 +412,7 @@ class WebGLFingerprinter {
         // 分析渲染器字符串
         const renderer = fingerprint.basic.renderer || '';
         const vendor = fingerprint.basic.vendor || '';
+        const normalizedVendor = this._normalizeVendor(renderer, vendor);
 
         // Apple GPU检测
         if (renderer.includes('Apple') || renderer.includes('M1') || renderer.includes('M2') || renderer.includes('M3')) {
@@ -504,13 +505,36 @@ class WebGLFingerprinter {
             confidence = Math.min(confidence + 5, 95);
         }
 
-        return {
+        const analysis = {
             model,
             confidence,
             evidence,
             rawRenderer: renderer,
-            rawVendor: vendor
+            rawVendor: vendor,
+            normalizedVendor
         };
+
+        // 将归一化后的厂商信息直接附加到源 fingerprint，方便后续逻辑复用
+        fingerprint.normalizedVendor = normalizedVendor;
+
+        return analysis;
+    }
+
+    /**
+     * 对 WebGL 返回的厂商/渲染器字符串进行归一化，方便后续数据库匹配
+     */
+    _normalizeVendor(renderer, vendor) {
+        const combined = `${renderer || ''} ${vendor || ''}`.toLowerCase();
+        if (!combined.trim()) return 'unknown';
+
+        if (combined.includes('apple') || combined.includes('metal')) return 'apple';
+        if (combined.includes('nvidia') || combined.includes('geforce') || combined.includes('rtx')) return 'nvidia';
+        if (combined.includes('amd') || combined.includes('radeon') || combined.includes('rdna')) return 'amd';
+        if (combined.includes('intel') || combined.includes('iris') || combined.includes('uhd') || combined.includes('hd graphics')) return 'intel';
+        if (combined.includes('qualcomm') || combined.includes('adreno')) return 'qualcomm';
+        if (combined.includes('arm') || combined.includes('mali')) return 'arm';
+
+        return (vendor || renderer || 'unknown').toLowerCase();
     }
 
     /**
