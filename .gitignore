@@ -27,6 +27,7 @@ ehthumbs.db
 # Emscripten缓存
 .emscripten_cache/
 .emscripten_ports/
+emsdk/
 
 # 日志文件
 *.log
