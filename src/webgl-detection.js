@@ -87,90 +87,215 @@ class WebGLFingerprinter {
      * 生成Canvas渲染指纹
      */
     generateCanvasFingerprint() {
-        if (!this.gl) return '';
+        if (!this.gl) return { primary: '', variants: {} };
+
+        const hashes = {
+            primary: '',
+            variants: {}
+        };
 
         try {
-            // 清除画布
-            this.gl.clearColor(0.0, 0.0, 0.0, 1.0);
-            this.gl.clear(this.gl.COLOR_BUFFER_BIT);
-
-            // 创建顶点着色器
-            const vertexShaderSource = `
-                attribute vec2 a_position;
-                attribute vec3 a_color;
-                varying vec3 v_color;
-                void main() {
-                    gl_Position = vec4(a_position, 0.0, 1.0);
-                    v_color = a_color;
-                }
-            `;
-
-            // 创建片段着色器（故意引入浮点精度差异）
-            const fragmentShaderSource = `
-                precision mediump float;
-                varying vec3 v_color;
-                void main() {
-                    float noise = sin(gl_FragCoord.x * 12.9898 + gl_FragCoord.y * 78.233) * 43758.5453;
-                    noise = fract(noise);
-                    gl_FragColor = vec4(v_color + vec3(noise * 0.1), 1.0);
-                }
-            `;
-
-            const program = this.createShaderProgram(vertexShaderSource, fragmentShaderSource);
-            if (!program) return '';
-
-            this.gl.useProgram(program);
-
-            // 创建几何图形（三角形和梯形组合）
-            const vertices = new Float32Array([
-                // 位置        // 颜色
-                -0.5, -0.5,    1.0, 0.0, 0.0,  // 红色
-                 0.5, -0.5,    0.0, 1.0, 0.0,  // 绿色
-                 0.0,  0.5,    0.0, 0.0, 1.0,  // 蓝色
-
-                -0.8,  0.2,    1.0, 1.0, 0.0,  // 黄色
-                 0.8,  0.2,    1.0, 0.0, 1.0,  // 品红
-                 0.0,  0.8,    0.0, 1.0, 1.0   // 青色
-            ]);
-
-            const buffer = this.gl.createBuffer();
-            this.gl.bindBuffer(this.gl.ARRAY_BUFFER, buffer);
-            this.gl.bufferData(this.gl.ARRAY_BUFFER, vertices, this.gl.STATIC_DRAW);
-
-            // 设置属性
-            const positionLocation = this.gl.getAttribLocation(program, 'a_position');
-            const colorLocation = this.gl.getAttribLocation(program, 'a_color');
-
-            this.gl.enableVertexAttribArray(positionLocation);
-            this.gl.vertexAttribPointer(positionLocation, 2, this.gl.FLOAT, false, 20, 0);
-
-            this.gl.enableVertexAttribArray(colorLocation);
-            this.gl.vertexAttribPointer(colorLocation, 3, this.gl.FLOAT, false, 20, 8);
-
-            // 渲染
-            this.gl.drawArrays(this.gl.TRIANGLES, 0, 6);
-
-            // 获取像素数据并生成哈希
-            const pixels = new Uint8Array(256 * 256 * 4);
-            this.gl.readPixels(0, 0, 256, 256, this.gl.RGBA, this.gl.UNSIGNED_BYTE, pixels);
-
-            // 计算像素哈希
-            let hash = 0;
-            for (let i = 0; i < pixels.length; i += 4) {
-                const pixel = (pixels[i] << 16) | (pixels[i + 1] << 8) | pixels[i + 2];
-                hash = ((hash << 5) - hash + pixel) & 0xffffffff;
-            }
-
-            // 清理
-            this.gl.deleteProgram(program);
-            this.gl.deleteBuffer(buffer);
-
-            return hash.toString(16);
-
+            hashes.primary = this.renderPrimaryWebGLHash();
         } catch (error) {
             console.error('Canvas指纹生成失败:', error);
+        }
+
+        try {
+            hashes.variants.blend = this.renderBlendFingerprint();
+        } catch (error) {
+            console.warn('WebGL混合指纹生成失败:', error);
+        }
+
+        try {
+            hashes.variants.canvas2d = this.generateCanvas2DHash();
+        } catch (error) {
+            console.warn('Canvas2D指纹生成失败:', error);
+        }
+
+        return hashes;
+    }
+
+    renderPrimaryWebGLHash() {
+        // 清除画布
+        this.gl.clearColor(0.0, 0.0, 0.0, 1.0);
+        this.gl.clear(this.gl.COLOR_BUFFER_BIT);
+
+        const vertexShaderSource = `
+            attribute vec2 a_position;
+            attribute vec3 a_color;
+            varying vec3 v_color;
+            void main() {
+                gl_Position = vec4(a_position, 0.0, 1.0);
+                v_color = a_color;
+            }
+        `;
+
+        const fragmentShaderSource = `
+            precision mediump float;
+            varying vec3 v_color;
+            void main() {
+                float noise = sin(gl_FragCoord.x * 12.9898 + gl_FragCoord.y * 78.233) * 43758.5453;
+                noise = fract(noise);
+                gl_FragColor = vec4(v_color + vec3(noise * 0.1), 1.0);
+            }
+        `;
+
+        const program = this.createShaderProgram(vertexShaderSource, fragmentShaderSource);
+        if (!program) return '';
+
+        this.gl.useProgram(program);
+
+        const vertices = new Float32Array([
+            -0.5, -0.5,    1.0, 0.0, 0.0,
+             0.5, -0.5,    0.0, 1.0, 0.0,
+             0.0,  0.5,    0.0, 0.0, 1.0,
+
+            -0.8,  0.2,    1.0, 1.0, 0.0,
+             0.8,  0.2,    1.0, 0.0, 1.0,
+             0.0,  0.8,    0.0, 1.0, 1.0
+        ]);
+
+        const buffer = this.gl.createBuffer();
+        this.gl.bindBuffer(this.gl.ARRAY_BUFFER, buffer);
+        this.gl.bufferData(this.gl.ARRAY_BUFFER, vertices, this.gl.STATIC_DRAW);
+
+        const positionLocation = this.gl.getAttribLocation(program, 'a_position');
+        const colorLocation = this.gl.getAttribLocation(program, 'a_color');
+
+        this.gl.enableVertexAttribArray(positionLocation);
+        this.gl.vertexAttribPointer(positionLocation, 2, this.gl.FLOAT, false, 20, 0);
+
+        this.gl.enableVertexAttribArray(colorLocation);
+        this.gl.vertexAttribPointer(colorLocation, 3, this.gl.FLOAT, false, 20, 8);
+
+        this.gl.drawArrays(this.gl.TRIANGLES, 0, 6);
+
+        const pixels = new Uint8Array(256 * 256 * 4);
+        this.gl.readPixels(0, 0, 256, 256, this.gl.RGBA, this.gl.UNSIGNED_BYTE, pixels);
+
+        this.gl.deleteProgram(program);
+        this.gl.deleteBuffer(buffer);
+
+        return this.calculatePixelHash(pixels);
+    }
+
+    renderBlendFingerprint() {
+        this.gl.clearColor(0.0, 0.0, 0.0, 1.0);
+        this.gl.clear(this.gl.COLOR_BUFFER_BIT);
+        this.gl.enable(this.gl.BLEND);
+        this.gl.blendFunc(this.gl.SRC_ALPHA, this.gl.ONE_MINUS_SRC_ALPHA);
+
+        const vertexShaderSource = `
+            attribute vec2 a_position;
+            attribute vec4 a_color;
+            varying vec4 v_color;
+            void main() {
+                gl_Position = vec4(a_position, 0.0, 1.0);
+                v_color = a_color;
+            }
+        `;
+
+        const fragmentShaderSource = `
+            precision mediump float;
+            varying vec4 v_color;
+            void main() {
+                float ripple = sin(gl_FragCoord.x * 0.05) * cos(gl_FragCoord.y * 0.05);
+                gl_FragColor = vec4(v_color.rgb * (0.8 + ripple * 0.2), v_color.a);
+            }
+        `;
+
+        const program = this.createShaderProgram(vertexShaderSource, fragmentShaderSource);
+        if (!program) {
+            this.gl.disable(this.gl.BLEND);
             return '';
         }
+
+        this.gl.useProgram(program);
+
+        const vertices = new Float32Array([
+            -0.9, -0.9,    1.0, 0.2, 0.2, 0.7,
+             0.9, -0.4,    0.2, 1.0, 0.2, 0.6,
+            -0.4,  0.9,    0.2, 0.2, 1.0, 0.5,
+
+             0.7, -0.7,    1.0, 1.0, 0.2, 0.5,
+             0.9,  0.9,    0.2, 1.0, 1.0, 0.4,
+            -0.6,  0.4,    1.0, 0.4, 1.0, 0.6
+        ]);
+
+        const buffer = this.gl.createBuffer();
+        this.gl.bindBuffer(this.gl.ARRAY_BUFFER, buffer);
+        this.gl.bufferData(this.gl.ARRAY_BUFFER, vertices, this.gl.STATIC_DRAW);
+
+        const positionLocation = this.gl.getAttribLocation(program, 'a_position');
+        const colorLocation = this.gl.getAttribLocation(program, 'a_color');
+
+        this.gl.enableVertexAttribArray(positionLocation);
+        this.gl.vertexAttribPointer(positionLocation, 2, this.gl.FLOAT, false, 24, 0);
+
+        this.gl.enableVertexAttribArray(colorLocation);
+        this.gl.vertexAttribPointer(colorLocation, 4, this.gl.FLOAT, false, 24, 8);
+
+        this.gl.drawArrays(this.gl.TRIANGLES, 0, 6);
+
+        const pixels = new Uint8Array(128 * 128 * 4);
+        this.gl.readPixels(0, 0, 128, 128, this.gl.RGBA, this.gl.UNSIGNED_BYTE, pixels);
+
+        this.gl.disable(this.gl.BLEND);
+        this.gl.deleteProgram(program);
+        this.gl.deleteBuffer(buffer);
+
+        return this.calculatePixelHash(pixels);
+    }
+
+    generateCanvas2DHash() {
+        const canvas = document.createElement('canvas');
+        canvas.width = 256;
+        canvas.height = 256;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return '';
+
+        ctx.fillStyle = '#102030';
+        ctx.fillRect(0, 0, 256, 256);
+
+        const gradient = ctx.createLinearGradient(0, 0, 256, 256);
+        gradient.addColorStop(0, '#ff6b6b');
+        gradient.addColorStop(0.5, '#4ecdc4');
+        gradient.addColorStop(1, '#1a535c');
+        ctx.fillStyle = gradient;
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.fillRect(16, 16, 224, 224);
+
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.font = '24px "Arial"';
+        ctx.fillStyle = '#f7fff7';
+        ctx.textBaseline = 'top';
+        ctx.fillText('WASM-FP', 20.5, 20.5);
+        ctx.fillStyle = 'rgba(30, 144, 255, 0.7)';
+        ctx.fillText('WASM-FP', 22.5, 24.5);
+
+        ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(32, 200);
+        for (let x = 32; x <= 224; x += 8) {
+            const y = 200 + Math.sin(x * 0.15) * 20;
+            ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+
+        const imageData = ctx.getImageData(0, 0, 256, 256).data;
+        return this.calculatePixelHash(imageData);
+    }
+
+    calculatePixelHash(pixelArray) {
+        if (!pixelArray || !pixelArray.length) return '';
+        let hash = 0;
+        for (let i = 0; i < pixelArray.length; i += 4) {
+            const pixel = (pixelArray[i] << 16) | (pixelArray[i + 1] << 8) | pixelArray[i + 2];
+            hash = ((hash << 5) - hash + pixel) & 0xffffffff;
+        }
+        const normalized = (hash >>> 0).toString(16).padStart(8, '0');
+        return normalized;
     }
 
     /**
@@ -378,10 +503,13 @@ class WebGLFingerprinter {
             return null;
         }
 
+        const canvasHashes = this.generateCanvasFingerprint();
+
         const fingerprint = {
             basic: this.getBasicGPUInfo(),
             extensions: this.getSupportedExtensions(),
-            canvasHash: this.generateCanvasFingerprint(),
+            canvasHash: canvasHashes.primary,
+            canvasVariants: canvasHashes.variants,
             performance: await this.measureRenderingPerformance(),
             precision: this.getFloatingPointPrecision(),
             limits: this.getGPULimits(),
@@ -511,7 +639,9 @@ class WebGLFingerprinter {
             evidence,
             rawRenderer: renderer,
             rawVendor: vendor,
-            normalizedVendor
+            normalizedVendor,
+            canvasHash: fingerprint.canvasHash || '',
+            canvasVariants: fingerprint.canvasVariants || {}
         };
 
         // 将归一化后的厂商信息直接附加到源 fingerprint，方便后续逻辑复用

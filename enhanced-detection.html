@@ -70,6 +70,7 @@
         <button onclick="runWebGPUDetection()">⚡ WebGPU高级检测</button>
         <button onclick="runTripleDetection()">🚀 三重检测 (终极精度)</button>
         <button onclick="analyzeSignatures()">🧬 完整特征分析</button>
+        <button onclick="runRealWorldDetection()">🛰️ 真实环境检测</button>
         <button onclick="showDatabaseStats()">📊 设备数据库统计</button>
         <button onclick="exportCalibrationSample()">📥 导出校准样本</button>
         <button onclick="clearResults()">清除结果</button>
@@ -83,11 +84,12 @@
 
     <div id="output" class="results"></div>
 
-    <script src="./build/wasm-fingerprint.js?v=20250930"></script>
-    <script src="./src/common.js?v=20250930"></script>
-    <script src="./src/webgl-detection.js?v=20250930"></script>
-    <script src="./src/webgpu-detection.js?v=20250930"></script>
-    <script src="./src/device-database.js?v=20250930"></script>
+    <script src="./build/wasm-fingerprint.js?v=20251002"></script>
+    <script src="./src/common.js?v=20251002"></script>
+    <script src="./src/webgl-detection.js?v=20251002"></script>
+    <script src="./src/webgpu-detection.js?v=20251002"></script>
+    <script src="./src/device-database.js?v=20251002"></script>
+    <script src="./src/realworld-detector.js?v=20251002"></script>
     <script>
         const output = document.getElementById('output');
         let wasmModule = null;
@@ -373,6 +375,8 @@
             try {
                 addResult('=== 📊 WASM CPU微架构深度分析 ===', 'cpu-info');
                 const Module = await initWASM();
+                await ensureCommonLoaded();
+                const wasmHelper = window.wasmFingerprint;
 
                 // 基础性能特征 - 使用修复版时间测量
                 function timedTest(testFunc, ...args) {
@@ -432,6 +436,11 @@
                 addResult(`   浮点计算: <span class="highlight">${float_test.result.toFixed(6)}</span> (${float_test.time.toFixed(2)}ms)`, 'cpu-info');
                 addResult(`   整数优化: <span class="highlight">${int_test.result}</span> (${int_test.time.toFixed(2)}ms)`, 'cpu-info');
                 addResult(`   向量计算: <span class="highlight">${vector_test.result.toFixed(6)}</span> (${vector_test.time.toFixed(2)}ms)`, 'cpu-info');
+
+                if (wasmHelper && typeof wasmHelper.detectSIMDSupport === 'function') {
+                    const simdSupported = await wasmHelper.detectSIMDSupport();
+                    addResult(`   SIMD支持: ${simdSupported ? '✔️ 已启用' : '❌ 未检测到'}`, simdSupported ? 'cpu-info' : 'limitation');
+                }
 
                 // 执行WASM详细缓存分析
                 addResult('🧬 WASM缓存层次分析:', 'enhancement');
@@ -1039,6 +1048,32 @@
                 const divDisplay = isFinite(divMulRatio) ? divMulRatio.toFixed(2) : '1.00';
                 addResult(`➗ 除法效率: ${divDisplay} (Intel通常<5, AMD可能>5)`, 'enhancement');
 
+                if (typeof features.simd_supported === 'boolean') {
+                    const simdStatus = features.simd_supported ? '支持 (WASM SIMD 已启用)' : '未检测到';
+                    addResult(`🧬 SIMD指令扩展: ${simdStatus}`, features.simd_supported ? 'cpu-info' : 'limitation');
+
+                    if (features.simd_supported && typeof features.simd_speedup === 'number' && isFinite(features.simd_speedup)) {
+                        addResult(`   SIMD相对整数速度: ${features.simd_speedup.toFixed(2)}x`, 'cpu-info');
+                    }
+                }
+
+                const logicalCores = typeof features.hardware_concurrency === 'number' && isFinite(features.hardware_concurrency)
+                    ? features.hardware_concurrency : null;
+                const workerCap = typeof features.worker_spawn_cap === 'number' && isFinite(features.worker_spawn_cap)
+                    ? features.worker_spawn_cap : null;
+
+                if (logicalCores || workerCap) {
+                    addResult('🧵 并发能力探测:', 'cpu-info');
+                    if (logicalCores) {
+                        addResult(`   navigator.hardwareConcurrency ≈ ${logicalCores}`, 'cpu-info');
+                    }
+                    if (workerCap) {
+                        const latency = typeof features.worker_latency_median === 'number' && isFinite(features.worker_latency_median)
+                            ? `${features.worker_latency_median.toFixed(2)}ms` : 'N/A';
+                        addResult(`   Worker可稳定并发: ${workerCap} 个 (中位往返 ${latency})`, 'cpu-info');
+                    }
+                }
+
                 addResult('📊 设备特征签名:', 'cpu-info');
 
                 // 分组显示内存测试结果，便于观察缓存边界
@@ -1060,8 +1095,23 @@
                 }
 
                 addResult('⚡ 计算性能特征:', 'cpu-info');
+                const hiddenKeys = new Set([
+                    'mem_ratio_l1_band',
+                    'mem_ratio_deep',
+                    'prefetch_efficiency',
+                    'prefetch_strength',
+                    'apple_memory_pattern',
+                    'simd_supported',
+                    'simd_speedup',
+                    'simd_vector_ratio',
+                    'hardware_concurrency',
+                    'worker_spawn_cap',
+                    'worker_latency_median',
+                    'worker_latency_mean'
+                ]);
+
                 const computeTests = Object.entries(features)
-                    .filter(([k, v]) => !k.startsWith('mem_ratio'));
+                    .filter(([k, v]) => !k.startsWith('mem_ratio') && !hiddenKeys.has(k));
 
                 for (const [key, value] of computeTests) {
                     if (typeof value === 'number' && isFinite(value)) {
@@ -1164,20 +1214,31 @@
                     let score = { apple: 0, intel: 0, amd: 0 };
                     let featureLog = []; // 记录所有特征分析
 
-                    // Apple Silicon特征评分 (针对M4 Pro优化)
-                    const hasLargeL1 = (avgL1 < 1.2 && l1Ratios.some((_, i, arr) => i < arr.length - 1 && arr[i + 1] / arr[i] > 1.4));
-                    const hasReversedStride = features.prefetch_efficiency && (features.prefetch_efficiency > 15 && features.prefetch_efficiency < 25);
-                    const hasUnifiedMemory = avgL3 > 1.7 && avgL3 < 1.9;
-                    const hasLowPressureDrop = features.pressure_resistance < 0.3;
-                    const hasAppleCache = avgL1 < 1.2 && avgL2 > 1.7; // Apple独特缓存特征
+                    const simdSupported = !!features.simd_supported;
+                    const workerCap = typeof features.worker_spawn_cap === 'number' && isFinite(features.worker_spawn_cap)
+                        ? features.worker_spawn_cap : null;
+                    const logicalCores = typeof features.hardware_concurrency === 'number' && isFinite(features.hardware_concurrency)
+                        ? features.hardware_concurrency : null;
+
+                    const prefetchEff = typeof features.prefetch_efficiency === 'number' && isFinite(features.prefetch_efficiency)
+                        ? features.prefetch_efficiency : null;
+                    const hasStrongPrefetch = prefetchEff !== null && prefetchEff > 0 && prefetchEff <= 0.7;
+                    const hasUltraPrefetch = prefetchEff !== null && prefetchEff > 0 && prefetchEff <= 0.4;
+
+                    // Apple Silicon特征评分 (更新阈值适配最新测试数据)
+                    const l1Jump = l1Ratios.length >= 2 ? Math.max(...l1Ratios.map((v, idx) => idx < l1Ratios.length - 1 ? l1Ratios[idx + 1] / Math.max(0.5, v) : 0)) : 0;
+                    const hasLargeL1 = avgL1 < 1.25 && l1Jump > 1.25;
+                    const hasUnifiedMemory = avgL3 > 1.5 && avgL3 < 1.9;
+                    const hasLowPressureDrop = typeof features.pressure_resistance === 'number' ? features.pressure_resistance < 0.2 : false;
+                    const hasAppleCache = avgL1 < 1.25 && avgL2 > 1.5;
 
                     if (hasLargeL1) {
                         score.apple += 2;
                         featureLog.push("✓ 大L1缓存特征 (+2 Apple)");
                     }
-                    if (hasReversedStride) {
-                        score.apple += 3;
-                        featureLog.push("✓ 预取器反向特征 (+3 Apple)");
+                    if (hasStrongPrefetch) {
+                        score.apple += hasUltraPrefetch ? 3 : 2;
+                        featureLog.push(hasUltraPrefetch ? "✓ 超强预取器 (+3 Apple)" : "✓ 强预取器 (+2 Apple)");
                     }
                     if (hasUnifiedMemory) {
                         score.apple += 2;
@@ -1239,6 +1300,29 @@
                     if (hasNegativeInt) {
                         score.amd += 1;
                         featureLog.push("✓ 特殊整数特征 (+1 AMD)");
+                    }
+
+                    if (simdSupported) {
+                        score.apple += 1;
+                        score.intel += 1;
+                        featureLog.push("✓ WASM SIMD支持 (+1 Apple/+1 Intel)");
+                    }
+
+                    if (workerCap && workerCap >= 16) {
+                        score.intel += 2;
+                        score.apple += 1;
+                        featureLog.push(`✓ Worker并发≥${workerCap} (+2 Intel, +1 Apple)`);
+                    } else if (workerCap && workerCap >= 10) {
+                        score.apple += 1;
+                        featureLog.push(`✓ Worker并发≥${workerCap} (+1 Apple)`);
+                    }
+
+                    if (logicalCores && logicalCores >= 16) {
+                        score.intel += 2;
+                        featureLog.push(`✓ 硬件并发≈${logicalCores} (+2 Intel)`);
+                    } else if (logicalCores && logicalCores >= 10) {
+                        score.apple += 1;
+                        featureLog.push(`✓ 硬件并发≈${logicalCores} (+1 Apple)`);
                     }
 
                     // 根据得分确定结果
@@ -1361,7 +1445,15 @@
                 addResult(`   重要扩展: ${fingerprint.extensions.important.length}`, 'cpu-info');
 
                 addResult('🎯 Canvas指纹:', 'cpu-info');
-                addResult(`   哈希值: ${fingerprint.canvasHash}`, 'cpu-info');
+                addResult(`   主指纹: ${fingerprint.canvasHash}`, 'cpu-info');
+                const canvasVariants = fingerprint.canvasVariants || {};
+                const variantEntries = Object.entries(canvasVariants);
+                if (variantEntries.length > 0) {
+                    addResult('   指纹变体:', 'cpu-info');
+                    variantEntries.forEach(([variantKey, variantValue]) => {
+                        addResult(`     • ${variantKey}: ${variantValue}`, 'cpu-info');
+                    });
+                }
 
                 if (fingerprint.performance) {
                     addResult('⚡ 渲染性能:', 'cpu-info');
@@ -1575,6 +1667,95 @@
             }
         }
 
+        async function runRealWorldDetection() {
+            try {
+                addResult('=== 🛰️ 真实环境检测启动 ===', 'enhancement');
+                await initWASM();
+                await ensureCommonLoaded();
+
+                if (typeof RealWorldDetector !== 'function') {
+                    throw new Error('RealWorldDetector 未加载');
+                }
+
+                const detector = new RealWorldDetector();
+                const report = await detector.detect();
+
+                addResult('🧱 基础信号:', 'cpu-info');
+                addResult(`   cores: ${report.basic.hardwareConcurrency ?? '未知'}`, 'cpu-info');
+                addResult(`   deviceMemory: ${report.basic.deviceMemory ?? '未知'} GB`, 'cpu-info');
+                addResult(`   platform: ${report.basic.platform ?? '未知'}`, 'cpu-info');
+
+                addResult('🚀 高级能力探测:', 'enhancement');
+                const simdStatus = report.advanced.simd === null ? '未知' : (report.advanced.simd ? '✔️ 支持SIMD' : '❌ 不支持SIMD');
+                const simdClass = report.advanced.simd === true ? 'cpu-info' : (report.advanced.simd === false ? 'limitation' : 'enhancement');
+                addResult(`   SIMD: ${simdStatus}`, simdClass);
+                const sabStatus = report.advanced.sharedArrayBuffer ? '✔️ 可用' : '❌ 不可用';
+                addResult(`   SharedArrayBuffer: ${sabStatus}`, report.advanced.sharedArrayBuffer ? 'cpu-info' : 'limitation');
+                if (report.advanced.webgpu.available) {
+                    const detected = report.advanced.webgpu.detected ? '✔️ 已获取指纹' : '⚠️ 可用但采集失败';
+                    addResult(`   WebGPU: ${detected}`, report.advanced.webgpu.detected ? 'cpu-info' : 'limitation');
+                    if (report.advanced.webgpu.analysis) {
+                        addResult(`     • ${report.advanced.webgpu.analysis.model} (${report.advanced.webgpu.analysis.confidence}%)`, 'cpu-info');
+                    }
+                    if (report.advanced.webgpu.error) {
+                        addResult(`     • 错误: ${report.advanced.webgpu.error}`, 'limitation');
+                    }
+                } else {
+                    addResult('   WebGPU: ❌ 不可用', 'limitation');
+                }
+
+                addResult('🔄 Fallback特征:', 'cpu-info');
+                if (report.fallback.wasm?.summary) {
+                    const wasm = report.fallback.wasm.summary;
+                    addResult(`   WASM CPU家族: ${wasm.cpuFamily ?? '未知'} (${wasm.confidence ?? 0}% 信心)`, 'cpu-info');
+                    addResult(`     L1比例: ${wasm.l1Band ?? 'N/A'} | 深层比例: ${wasm.deepBand ?? 'N/A'}`, 'cpu-info');
+                }
+                if (report.fallback.webgl?.summary) {
+                    const webgl = report.fallback.webgl.summary;
+                    addResult(`   WebGL Renderer: ${webgl.renderer ?? '未知'}`, 'cpu-info');
+                    addResult(`     CanvasHash: ${webgl.canvasHash ?? 'N/A'}`, 'cpu-info');
+                    if (webgl.blendHash || webgl.canvas2DHash) {
+                        addResult(`     Blend: ${webgl.blendHash ?? 'N/A'}, Canvas2D: ${webgl.canvas2DHash ?? 'N/A'}`, 'cpu-info');
+                    }
+                }
+                const fallbackErrors = Object.entries(report.fallback.errors || {});
+                if (fallbackErrors.length) {
+                    addResult('   ⚠️ Fallback错误:', 'limitation');
+                    fallbackErrors.forEach(([key, message]) => addResult(`     • ${key}: ${message}`, 'limitation'));
+                }
+
+                addResult('🎯 综合结论:', 'model-guess');
+                addResult(`   判定设备: ${report.analysis.device}`, 'model-guess');
+                addResult(`   方法: ${report.analysis.method} (${report.analysis.tier})`, 'model-guess');
+                addResult(`   置信度: ${report.analysis.confidence}%`, 'model-guess');
+                if (Array.isArray(report.analysis.evidence) && report.analysis.evidence.length) {
+                    report.analysis.evidence.forEach(ev => addResult(`   • ${ev}`, 'model-guess'));
+                }
+
+                const dbSignal = report.analysis.signals?.databaseResult;
+                if (dbSignal && dbSignal.deviceModel) {
+                    addResult(`   数据库匹配: ${dbSignal.deviceModel} (${dbSignal.confidence}% )`, 'model-guess');
+                }
+
+                if (Array.isArray(report.timeline) && report.timeline.length) {
+                    addResult('⏱️ 阶段耗时:', 'enhancement');
+                    const baseTs = report.timeline[0].timestamp;
+                    report.timeline.forEach(entry => {
+                        const dt = ((entry.timestamp - baseTs) / 1000).toFixed(2);
+                        addResult(`   [${entry.stage}] +${dt}s`, 'enhancement');
+                    });
+                }
+
+                if (typeof report.durationMs === 'number') {
+                    addResult(`✅ 检测总耗时: ${report.durationMs.toFixed(1)}ms`, 'cpu-info');
+                }
+
+            } catch (error) {
+                console.error('runRealWorldDetection failed', error);
+                addResult(`❌ 真实环境检测失败: ${error.message}`, 'limitation');
+            }
+        }
+
         // 三重检测函数 - 核心功能
         async function runTripleDetection() {
             try {
@@ -1616,6 +1797,22 @@
 
                 if (Array.isArray(cpuAnalysis?.evidence) && cpuAnalysis.evidence.length) {
                     cpuAnalysis.evidence.forEach(e => addResult(`   • ${e}`, 'cpu-info'));
+                }
+
+                const wasmFeatureSet = wasmFingerprintData?.features || {};
+                if (typeof wasmFeatureSet.simd_supported === 'boolean') {
+                    const simdMsg = wasmFeatureSet.simd_supported ? '支持WASM SIMD扩展' : '未检测到WASM SIMD';
+                    addResult(`   SIMD扩展: ${simdMsg}`, wasmFeatureSet.simd_supported ? 'cpu-info' : 'limitation');
+                    if (wasmFeatureSet.simd_supported && typeof wasmFeatureSet.simd_speedup === 'number' && isFinite(wasmFeatureSet.simd_speedup)) {
+                        addResult(`   SIMD速度提升: ${wasmFeatureSet.simd_speedup.toFixed(2)}x`, 'cpu-info');
+                    }
+                }
+
+                const workerProfile = wasmFingerprintData?.workerProfile;
+                if (workerProfile && workerProfile.spawned) {
+                    const latency = typeof workerProfile.medianLatency === 'number' && isFinite(workerProfile.medianLatency)
+                        ? `${workerProfile.medianLatency.toFixed(2)}ms` : 'N/A';
+                    addResult(`   Worker并发能力: ${workerProfile.spawned} (中位往返 ${latency})`, 'cpu-info');
                 }
 
                 // 2. WebGL GPU检测

@@ -4,6 +4,9 @@ class WASMFingerprint {
     constructor() {
         this.wasmModule = null;
         this._calibration = null;
+        this._simdSupport = undefined;
+        this._simdBenchmark = null;
+        this._workerProfile = null;
     }
 
     async initWASM() {
@@ -157,11 +160,197 @@ class WASMFingerprint {
         return out;
     }
 
+    async profileWorkerCapacity(maxProbe = 24) {
+        if (this._workerProfile) {
+            return this._workerProfile;
+        }
+
+        if (typeof Worker === 'undefined') {
+            this._workerProfile = {
+                available: false,
+                hardwareConcurrency: typeof navigator === 'object' ? navigator?.hardwareConcurrency ?? null : null,
+                spawned: 0,
+                tested: 0,
+                medianLatency: null,
+                meanLatency: null,
+                failureReason: 'Worker API unavailable'
+            };
+            return this._workerProfile;
+        }
+
+        const hardwareConcurrency = typeof navigator === 'object' && typeof navigator?.hardwareConcurrency === 'number'
+            ? navigator.hardwareConcurrency
+            : null;
+
+        const upperBound = Math.max(1, Math.min(maxProbe, hardwareConcurrency ? Math.max(hardwareConcurrency * 2, hardwareConcurrency + 2) : maxProbe));
+
+        const workerScript = `self.onmessage = function(evt) {
+    var data = evt && evt.data || {};
+    if (data.type === 'ping') {
+        self.postMessage({ type: 'pong', index: data.index || 0 });
+    } else if (data.type === 'stop') {
+        self.postMessage({ type: 'stopped' });
+        try { self.close(); } catch (e) {}
+    }
+};`;
+
+        const blob = new Blob([workerScript], { type: 'application/javascript' });
+        const workerUrl = URL.createObjectURL(blob);
+        const workers = [];
+        const latencies = [];
+        let spawned = 0;
+        let failureReason = null;
+
+        const median = (arr) => {
+            if (!arr.length) return null;
+            const sorted = [...arr].sort((a, b) => a - b);
+            const mid = Math.floor(sorted.length / 2);
+            return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+        };
+
+        const mean = (arr) => {
+            if (!arr.length) return null;
+            return arr.reduce((a, b) => a + b, 0) / arr.length;
+        };
+
+        try {
+            for (let i = 0; i < upperBound; i++) {
+                let worker;
+                try {
+                    worker = new Worker(workerUrl, { name: `probe-${i}` });
+                } catch (err) {
+                    failureReason = err;
+                    break;
+                }
+
+                workers.push(worker);
+
+                const latency = await new Promise((resolve, reject) => {
+                    const start = performance.now();
+                    const timeout = setTimeout(() => {
+                        cleanup();
+                        reject(new Error('worker handshake timeout'));
+                    }, 400);
+
+                    const cleanup = () => {
+                        clearTimeout(timeout);
+                        worker.removeEventListener('message', onMessage);
+                        worker.removeEventListener('error', onError);
+                    };
+
+                    const onMessage = (event) => {
+                        const data = event && event.data;
+                        if (!data || data.type !== 'pong' || (data.index ?? i) !== i) {
+                            return;
+                        }
+                        const end = performance.now();
+                        cleanup();
+                        resolve(end - start);
+                    };
+
+                    const onError = (err) => {
+                        cleanup();
+                        reject(err instanceof Error ? err : new Error(String(err)));
+                    };
+
+                    worker.addEventListener('message', onMessage);
+                    worker.addEventListener('error', onError);
+                    worker.postMessage({ type: 'ping', index: i });
+                }).catch((err) => {
+                    failureReason = err;
+                    return null;
+                });
+
+                if (typeof latency === 'number' && isFinite(latency)) {
+                    latencies.push(latency);
+                    spawned += 1;
+                } else {
+                    break;
+                }
+            }
+        } finally {
+            for (const worker of workers) {
+                try { worker.postMessage({ type: 'stop' }); } catch (_e) {}
+                try { worker.terminate(); } catch (_e) {}
+            }
+            URL.revokeObjectURL(workerUrl);
+        }
+
+        this._workerProfile = {
+            available: true,
+            hardwareConcurrency,
+            spawned,
+            tested: upperBound,
+            medianLatency: median(latencies),
+            meanLatency: mean(latencies),
+            failureReason: failureReason ? (failureReason.message || String(failureReason)) : null
+        };
+
+        return this._workerProfile;
+    }
+
+    async detectSIMDSupport() {
+        if (typeof this._simdSupport === 'boolean') {
+            return this._simdSupport;
+        }
+
+        if (typeof WebAssembly !== 'object' || typeof WebAssembly.validate !== 'function') {
+            this._simdSupport = false;
+            return this._simdSupport;
+        }
+
+        // Minimal module borrowed from wasm-feature-detect to probe SIMD support
+        const simdModuleBytes = new Uint8Array([
+            0, 97, 115, 109, 1, 0, 0, 0, 1, 4, 1, 96, 0, 0, 3, 2, 1, 0,
+            10, 11, 1, 9, 0, 65, 0, 253, 15, 11
+        ]);
+
+        try {
+            if (!WebAssembly.validate(simdModuleBytes)) {
+                this._simdSupport = false;
+                return this._simdSupport;
+            }
+            await WebAssembly.compile(simdModuleBytes);
+            this._simdSupport = true;
+        } catch (_err) {
+            this._simdSupport = false;
+        }
+
+        return this._simdSupport;
+    }
+
+    async measureSIMDCharacteristics(computeResults = null) {
+        if (this._simdBenchmark) {
+            return this._simdBenchmark;
+        }
+
+        const supported = await this.detectSIMDSupport();
+        const baseline = computeResults || await this.runComputeTests();
+        const vectorTime = baseline?.vector?.time;
+        const integerTime = baseline?.integer?.time;
+
+        const hasTimes = typeof vectorTime === 'number' && vectorTime > 0 &&
+            typeof integerTime === 'number' && integerTime > 0;
+
+        const speedup = supported && hasTimes ? (integerTime / vectorTime) : null;
+        const vectorRatio = hasTimes ? (vectorTime / integerTime) : null;
+
+        this._simdBenchmark = {
+            supported,
+            speedup,
+            vectorRatio
+        };
+
+        return this._simdBenchmark;
+    }
+
     // 生成设备指纹
     async generateFingerprint() {
         const Module = await this.initWASM();
         const memoryResults = await this.runMemoryTests();
         const computeResults = await this.runComputeTests();
+        const simdBenchmark = await this.measureSIMDCharacteristics(computeResults);
+        const workerProfile = await this.profileWorkerCapacity();
         // 低层结构探测
         let l1 = null, l2 = null, l3 = null, cacheLine = null, tlb = null;
         try { l1 = Module._l1_cache_size_detection ? Module._l1_cache_size_detection(320) : null; } catch(_e) {}
@@ -186,6 +375,13 @@ class WASMFingerprint {
         features.integer_opt = computeResults.integer.result;
         features.vector_comp = computeResults.vector.result;
         features.branch_pred = computeResults.branch.result;
+        features.simd_supported = simdBenchmark.supported;
+        features.simd_speedup = simdBenchmark.speedup;
+        features.simd_vector_ratio = simdBenchmark.vectorRatio;
+        features.hardware_concurrency = workerProfile.hardwareConcurrency;
+        features.worker_spawn_cap = workerProfile.spawned;
+        features.worker_latency_median = workerProfile.medianLatency;
+        features.worker_latency_mean = workerProfile.meanLatency;
 
         // 结构与步长
         features.l1_kb = l1;
@@ -208,6 +404,7 @@ class WASMFingerprint {
             memoryResults,
             computeResults,
             structure: { l1_kb: l1, l2_kb: l2, l3_mb: l3, cache_line: cacheLine, tlb_entries: tlb },
+            workerProfile,
             hash: this.calculateHash(features)
         };
     }
@@ -294,6 +491,13 @@ class WASMFingerprint {
         const l1Band = fingerprint?.features?.mem_ratio_l1_band;
         const deepBand = fingerprint?.features?.mem_ratio_deep;
         const overall = this._safeOverallRatio(fingerprint?.memoryResults);
+        const logicalCores = typeof f.hardware_concurrency === 'number' && isFinite(f.hardware_concurrency)
+            ? Math.round(f.hardware_concurrency)
+            : null;
+        const workerCap = typeof f.worker_spawn_cap === 'number' && isFinite(f.worker_spawn_cap)
+            ? Math.round(f.worker_spawn_cap)
+            : null;
+        const simdSupported = !!f.simd_supported;
 
         // 无校准时的保底规则（简化，待样本微调）
         const evidence = [];
@@ -326,6 +530,12 @@ class WASMFingerprint {
                 evidence.push(`4MB比例=${ratio4m.toFixed(3)} 提示更高档位`);
                 confidence += 5;
             }
+
+            if (logicalCores && logicalCores >= 12) {
+                if (!tier) tier = 'Pro/Max';
+                confidence += 5;
+                evidence.push(`并发核心≈${logicalCores} 显示高端Apple芯片`);
+            }
         }
 
         // Intel/AMD 细分（非常粗，等待校准样本细化）
@@ -334,6 +544,15 @@ class WASMFingerprint {
             else if (l3mb && l3mb >= 12) { tier = 'Desktop/Mobile-High'; evidence.push(`L3≈${l3mb}MB`); }
             if (typeof overall === 'number' && overall > 2.3) { generation = 'Zen/ARM-high'; }
             else if (typeof overall === 'number') { generation = 'Modern-Core'; }
+
+            if (logicalCores && logicalCores >= 16) {
+                tier = tier || 'Desktop-High';
+                confidence += 5;
+                evidence.push(`并发核心≈${logicalCores} 显示桌面旗舰`);
+            } else if (logicalCores && logicalCores >= 8 && !tier) {
+                tier = 'Performance';
+                evidence.push(`并发核心≈${logicalCores}`);
+            }
         }
 
         // 若存在校准文件，使用校准分数覆盖家族判断
@@ -380,6 +599,18 @@ class WASMFingerprint {
                 confidence = Math.min(95, confidence + 10);
                 evidence.push(`深层比例=${deepBand.toFixed(3)} & 预取效率=${prefetchEff.toFixed(2)} 符合M4系特征`);
                 if (family === 'Apple' && !tier) tier = 'Pro/Max';
+            }
+        }
+
+        if (simdSupported) {
+            confidence = Math.min(95, confidence + 3);
+            evidence.push('检测到WASM SIMD扩展');
+        }
+
+        if (workerCap && workerCap >= 12) {
+            evidence.push(`Worker并发上限≈${workerCap}`);
+            if (!logicalCores && workerCap >= 12) {
+                confidence += 2;
             }
         }
 

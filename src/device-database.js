@@ -374,6 +374,25 @@ class DeviceSignatureDatabase {
                 }
             }
 
+            if (profile.gpu.webgl.canvasHashPattern) {
+                const pattern = profile.gpu.webgl.canvasHashPattern;
+                const hashes = [];
+                if (typeof webglAnalysis.canvasHash === 'string') hashes.push(webglAnalysis.canvasHash);
+                if (webglAnalysis.canvasVariants && typeof webglAnalysis.canvasVariants === 'object') {
+                    for (const value of Object.values(webglAnalysis.canvasVariants)) {
+                        if (typeof value === 'string') hashes.push(value);
+                    }
+                }
+
+                const matched = hashes.some(hash => typeof hash === 'string' && pattern.test(hash));
+                if (matched) {
+                    scores.webgl += 12;
+                    details.webgl.push('Canvas指纹匹配');
+                } else if (hashes.length) {
+                    contradictions.push('Canvas指纹未匹配预期模式');
+                }
+            }
+
             if (webglAnalysis.confidence > 80) {
                 scores.webgl += 10;
                 details.webgl.push(`高置信度WebGL检测: ${webglAnalysis.confidence}%`);
