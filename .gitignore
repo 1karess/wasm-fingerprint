@@ -1,7 +1,13 @@
 # 构建产物
-build/
-*.wasm
 *.js.map
+# 默认忽略 build 目录，但保留关键部署文件
+build/
+!build/
+build/*
+!build/wasm-fingerprint.js
+!build/wasm-fingerprint.wasm
+*.wasm
+!build/wasm-fingerprint.wasm
 
 # 临时文件
 .DS_Store
