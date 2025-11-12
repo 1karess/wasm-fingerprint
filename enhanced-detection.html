@@ -136,7 +136,7 @@
                             // 强制设置正确的状态标志
                             this.runtimeInitialized = true;
 
-                            console.log('✅ WASM运行时正式初始化完成:', {
+                            console.log(' WASM运行时正式初始化完成:', {
                                 runtimeInitialized: this.runtimeInitialized,
                                 calledRun: this.calledRun,
                                 hasHEAP8: !!this.HEAP8,
@@ -187,22 +187,22 @@
                     const testPtr = wasmModule._malloc(1024);
                     if (testPtr) {
                         wasmModule._free(testPtr);
-                        console.log('✅ 内存分配测试通过');
+                        console.log(' 内存分配测试通过');
                     } else {
-                        console.warn('⚠️ 内存分配测试失败，但继续执行');
+                        console.warn(' 内存分配测试失败，但继续执行');
                     }
 
                     const testResult = wasmModule._sequential_access_test(32, 10);
-                    console.log('✅ 序列访问测试通过:', testResult);
+                    console.log(' 序列访问测试通过:', testResult);
                 } catch (e) {
-                    console.warn('⚠️ 功能验证测试失败:', e.message);
+                    console.warn(' 功能验证测试失败:', e.message);
                 }
 
                 return wasmModule;
             } catch (error) {
                 wasmModule = null;
-                console.error('❌ WASM初始化彻底失败:', error);
-                addResult(`❌ WASM加载失败: ${error.message}`, 'limitation');
+                console.error(' WASM初始化彻底失败:', error);
+                addResult(` WASM加载失败: ${error.message}`, 'limitation');
                 throw error;
             }
         }
@@ -272,11 +272,11 @@
         // 核心CPU检测函数
         async function runCPUDetection() {
             try {
-                addResult('=== 🎯 CPU型号检测启动 ===', 'enhancement');
+                addResult('=== CPU Model Detection Started ===', 'enhancement');
                 const Module = await initWASM();
 
                 // 核心检测: 内存访问模式
-                addResult('🧠 内存访问模式分析:', 'cpu-info');
+                addResult('Memory Access Pattern Analysis:', 'cpu-info');
 
                 // 运行多次测试获得准确比例
                 let ratios = [];
@@ -301,23 +301,23 @@
                     if (seqTime > 0.1 && randTime > 0.1) {  // 至少0.1ms确保有意义
                         const ratio = randTime / seqTime;
                         ratios.push(ratio);
-                        addResult(`   测试 ${i+1}(${size}KB/${iter}次): 顺序=${seqTime.toFixed(2)}ms, 随机=${randTime.toFixed(2)}ms, 比例=${ratio.toFixed(3)}`, 'cpu-info');
+                        addResult(`   Test ${i+1}(${size}KB/${iter} iterations): Sequential=${seqTime.toFixed(2)}ms, Random=${randTime.toFixed(2)}ms, Ratio=${ratio.toFixed(3)}`, 'cpu-info');
                     }
                 }
 
                 const avgRatio = ratios.reduce((a, b) => a + b) / ratios.length;
-                addResult(`   平均比例: ${avgRatio.toFixed(3)}`, 'cpu-info');
+                addResult(`   Average Ratio: ${avgRatio.toFixed(3)}`, 'cpu-info');
 
                 // 缓存特征分析
-                addResult('📊 缓存架构分析:', 'cpu-info');
+                addResult('Cache Architecture Analysis:', 'cpu-info');
                 const l1Size = Module._l1_cache_size_detection(64);
                 const cacheLineSize = Module._cache_line_size_detection();
 
-                addResult(`   L1缓存大小: ${l1Size}KB`, 'cpu-info');
-                addResult(`   缓存行大小: ${cacheLineSize}字节`, 'cpu-info');
+                addResult(`   L1 Cache Size: ${l1Size}KB`, 'cpu-info');
+                addResult(`   Cache Line Size: ${cacheLineSize} bytes`, 'cpu-info');
 
                 // CPU型号推断 - 统一算法与其他检测保持一致
-                let cpuModel = "未知CPU";
+                let cpuModel = "Unknown CPU";
                 let confidence = 0;
                 let evidence = [];
 
@@ -325,55 +325,55 @@
                 if (avgRatio >= 0.5 && avgRatio < 1.6) {  // 统一Apple Silicon范围
                     cpuModel = "Apple Silicon (M1/M2/M3/M4)";
                     confidence = 90;
-                    evidence.push(`内存访问比例 ${avgRatio.toFixed(3)} 显示统一内存架构特征`);
+                    evidence.push(`Memory access ratio ${avgRatio.toFixed(3)} indicates unified memory architecture`);
 
                     if (avgRatio <= 0.8) {
                         confidence = 95;
-                        evidence.push("极低的随机访问惩罚，典型的Apple Silicon特征");
+                        evidence.push("Very low random access penalty, typical Apple Silicon characteristic");
                     }
                 } else if (avgRatio >= 1.6 && avgRatio <= 2.5) {  // 统一Intel范围
-                    cpuModel = "Intel高性能CPU";
+                    cpuModel = "Intel High-Performance CPU";
                     confidence = 85;
-                    evidence.push(`内存访问比例 ${avgRatio.toFixed(3)} 符合Intel缓存架构`);
+                    evidence.push(`Memory access ratio ${avgRatio.toFixed(3)} matches Intel cache architecture`);
                 } else if (avgRatio > 2.5 && avgRatio <= 4.0) {  // 统一AMD范围
-                    cpuModel = "AMD Ryzen/主流CPU";
+                    cpuModel = "AMD Ryzen/Mainstream CPU";
                     confidence = 80;
-                    evidence.push(`内存访问比例 ${avgRatio.toFixed(3)} 显示AMD典型特征`);
+                    evidence.push(`Memory access ratio ${avgRatio.toFixed(3)} shows typical AMD characteristics`);
                 } else if (avgRatio > 4.0) {
-                    cpuModel = "低端CPU或虚拟环境";
+                    cpuModel = "Low-end CPU or Virtual Environment";
                     confidence = 70;
-                    evidence.push(`内存访问比例 ${avgRatio.toFixed(3)} 显示性能受限特征`);
+                    evidence.push(`Memory access ratio ${avgRatio.toFixed(3)} indicates performance-limited characteristics`);
                 } else {
-                    cpuModel = "异常结果";
+                    cpuModel = "Abnormal Result";
                     confidence = 30;
-                    evidence.push(`内存访问比例 ${avgRatio.toFixed(3)} 异常，可能是测试环境问题`);
+                    evidence.push(`Memory access ratio ${avgRatio.toFixed(3)} is abnormal, possibly a test environment issue`);
                 }
 
                 // 缓存特征验证
                 if (l1Size === 32 && cacheLineSize === 64) {
                     confidence += 5;
-                    evidence.push("标准L1缓存配置(32KB/64B)");
+                    evidence.push("Standard L1 cache configuration (32KB/64B)");
                 } else if (l1Size === 32 && cacheLineSize === 128) {
                     if (cpuModel.includes("Apple")) {
                         confidence += 10;
-                        evidence.push("Apple特有的128字节缓存行");
+                        evidence.push("Apple-specific 128-byte cache line");
                     }
                 }
 
-                addResult('🎯 检测结果:', 'model-guess');
-                addResult(`   CPU型号: ${cpuModel}`, 'model-guess');
-                addResult(`   置信度: ${confidence}%`, 'model-guess');
-                addResult('📋 推断依据:', 'model-guess');
-                evidence.forEach(e => addResult(`   • ${e}`, 'model-guess'));
+                addResult('Detection Results:', 'model-guess');
+                addResult(`   CPU Model: ${cpuModel}`, 'model-guess');
+                addResult(`   Confidence: ${confidence}%`, 'model-guess');
+                addResult('Inference Basis:', 'model-guess');
+                evidence.forEach(e => addResult(`   - ${e}`, 'model-guess'));
 
             } catch (error) {
-                addResult(`❌ CPU检测失败: ${error.message}`, 'limitation');
+                addResult(`CPU Detection Failed: ${error.message}`, 'limitation');
             }
         }
 
         async function runBasicDetection() {
             try {
-                addResult('=== 📊 WASM CPU微架构深度分析 ===', 'cpu-info');
+                addResult('=== WASM CPU Microarchitecture Deep Analysis ===', 'cpu-info');
                 const Module = await initWASM();
                 await ensureCommonLoaded();
                 const wasmHelper = window.wasmFingerprint;
@@ -405,11 +405,11 @@
                             // 差异不大，可能是Apple统一内存架构的特征
                             memRatio = reverseRatio;
                             isAppleMemoryPattern = true;
-                            addResult(`🍎 检测到Apple Silicon内存模式：顺序访问略慢于随机访问`, 'enhancement');
+                            addResult(`Detected Apple Silicon memory pattern: Sequential access slightly slower than random access`, 'enhancement');
                         } else {
                             // 差异很大，可能确实是异常
                             memRatio = reverseRatio;
-                            addResult(`⚠️ 检测到异常：顺序访问明显慢于随机访问(${reverseRatio.toFixed(2)}x)`, 'limitation');
+                            addResult(`Warning: Sequential access significantly slower than random access (${reverseRatio.toFixed(2)}x)`, 'limitation');
                         }
                     } else {
                         memRatio = randTest.time / seqTest.time;
@@ -419,31 +419,31 @@
                 }
 
                 // 显示基础结果
-                addResult('🔧 基础性能测试结果:', 'cpu-info');
+                addResult('Basic Performance Test Results:', 'cpu-info');
                 if (typeof memRatio === 'number') {
                     let description;
                     if (isAppleMemoryPattern) {
-                        description = `Apple Silicon模式 - 顺序${seqTest.time.toFixed(2)}ms / 随机${randTest.time.toFixed(2)}ms`;
+                        description = `Apple Silicon mode - Sequential ${seqTest.time.toFixed(2)}ms / Random ${randTest.time.toFixed(2)}ms`;
                     } else {
-                        const slowerAccess = randTest.time > seqTest.time ? '随机' : '顺序';
-                        const fasterAccess = randTest.time > seqTest.time ? '顺序' : '随机';
-                        description = `${slowerAccess}${Math.max(randTest.time, seqTest.time).toFixed(2)}ms / ${fasterAccess}${Math.min(randTest.time, seqTest.time).toFixed(2)}ms`;
+                        const slowerAccess = randTest.time > seqTest.time ? 'Random' : 'Sequential';
+                        const fasterAccess = randTest.time > seqTest.time ? 'Sequential' : 'Random';
+                        description = `${slowerAccess} ${Math.max(randTest.time, seqTest.time).toFixed(2)}ms / ${fasterAccess} ${Math.min(randTest.time, seqTest.time).toFixed(2)}ms`;
                     }
-                    addResult(`   内存访问时间比例: <span class="highlight">${memRatio.toFixed(3)}</span> (${description})`, 'cpu-info');
+                    addResult(`   Memory Access Time Ratio: <span class="highlight">${memRatio.toFixed(3)}</span> (${description})`, 'cpu-info');
                 } else {
-                    addResult(`   内存访问时间比例: <span class="highlight">${memRatio}</span>`, 'limitation');
+                    addResult(`   Memory Access Time Ratio: <span class="highlight">${memRatio}</span>`, 'limitation');
                 }
-                addResult(`   浮点计算: <span class="highlight">${float_test.result.toFixed(6)}</span> (${float_test.time.toFixed(2)}ms)`, 'cpu-info');
-                addResult(`   整数优化: <span class="highlight">${int_test.result}</span> (${int_test.time.toFixed(2)}ms)`, 'cpu-info');
-                addResult(`   向量计算: <span class="highlight">${vector_test.result.toFixed(6)}</span> (${vector_test.time.toFixed(2)}ms)`, 'cpu-info');
+                addResult(`   Float Computation: <span class="highlight">${float_test.result.toFixed(6)}</span> (${float_test.time.toFixed(2)}ms)`, 'cpu-info');
+                addResult(`   Integer Optimization: <span class="highlight">${int_test.result}</span> (${int_test.time.toFixed(2)}ms)`, 'cpu-info');
+                addResult(`   Vector Computation: <span class="highlight">${vector_test.result.toFixed(6)}</span> (${vector_test.time.toFixed(2)}ms)`, 'cpu-info');
 
                 if (wasmHelper && typeof wasmHelper.detectSIMDSupport === 'function') {
                     const simdSupported = await wasmHelper.detectSIMDSupport();
-                    addResult(`   SIMD支持: ${simdSupported ? '✔️ 已启用' : '❌ 未检测到'}`, simdSupported ? 'cpu-info' : 'limitation');
+                    addResult(`   SIMD Support: ${simdSupported ? 'Enabled' : 'Not Detected'}`, simdSupported ? 'cpu-info' : 'limitation');
                 }
 
                 // 执行WASM详细缓存分析
-                addResult('🧬 WASM缓存层次分析:', 'enhancement');
+                addResult('WASM Cache Hierarchy Analysis:', 'enhancement');
 
                 const features = {};
                 const testSizes = [
@@ -455,7 +455,7 @@
                     { size: 4096, label: '4MB', iterations: 50 }
                 ];
 
-                addResult('   正在分析缓存特征...', 'enhancement');
+                addResult('   Analyzing cache characteristics...', 'enhancement');
 
                 for (let testCase of testSizes) {
                     let seqTimes = [];
@@ -484,13 +484,13 @@
                         const ratio = avgRandTime / avgSeqTime;
                         features[`mem_ratio_${testCase.size}KB`] = ratio;
 
-                        const isSignificant = ratio > 1.6 ? '⚠️ 缓存边界' : '';
-                        addResult(`   ${testCase.label}: 比例=${ratio.toFixed(3)} ${isSignificant}`, 'enhancement');
+                        const isSignificant = ratio > 1.6 ? 'Cache Boundary' : '';
+                        addResult(`   ${testCase.label}: Ratio=${ratio.toFixed(3)} ${isSignificant}`, 'enhancement');
                     }
                 }
 
                 // WASM微架构特征分析
-                addResult('🎯 WASM微架构特征分析:', 'model-guess');
+                addResult('WASM Microarchitecture Feature Analysis:', 'model-guess');
 
                 // 步长敏感性测试
                 const strideTests = [
@@ -500,7 +500,7 @@
                     { stride: 4096, label: '1内存页(4KB)' }
                 ];
 
-                addResult('   预取器行为分析:', 'model-guess');
+                addResult('   Prefetcher Behavior Analysis:', 'model-guess');
                 for (const test of strideTests) {
                     const start = performance.now();
                     Module._stride_access_test(512, test.stride, 200);
@@ -525,29 +525,29 @@
                     // 合理性检查
                     if (prefetchEfficiency > 0.1 && prefetchEfficiency < 50) {
                         let desc = "";
-                        if (prefetchEfficiency < 0.5) desc = " (超强预取器)";
-                        else if (prefetchEfficiency < 1.0) desc = " (强预取器)";
-                        else if (prefetchEfficiency < 3.0) desc = " (中等预取器)";
-                        else desc = " (预取器一般)";
+                        if (prefetchEfficiency < 0.5) desc = " (Ultra-strong prefetcher)";
+                        else if (prefetchEfficiency < 1.0) desc = " (Strong prefetcher)";
+                        else if (prefetchEfficiency < 3.0) desc = " (Medium prefetcher)";
+                        else desc = " (Normal prefetcher)";
 
-                        addResult(`   🔮 预取器效率: ${prefetchEfficiency.toFixed(1)}${desc}`, 'model-guess');
+                        addResult(`   Prefetcher Efficiency: ${prefetchEfficiency.toFixed(1)}${desc}`, 'model-guess');
                     } else {
-                        addResult(`   ⚠️ 预取器分析: 数据异常 (效率=${prefetchEfficiency.toFixed(2)})`, 'limitation');
+                        addResult(`   Warning: Prefetcher analysis data abnormal (efficiency=${prefetchEfficiency.toFixed(2)})`, 'limitation');
 
                         // 重新分析时间趋势
-                        addResult('   🔍 详细时间分析:', 'model-guess');
+                        addResult('   Detailed Time Analysis:', 'model-guess');
                         for (let i = 1; i < validStrides.length; i++) {
                             const prev = validStrides[i-1];
                             const curr = validStrides[i];
                             const ratio = features[`stride_${curr}`] / features[`stride_${prev}`];
-                            const trend = ratio > 1 ? "增加" : "减少";
-                            addResult(`     ${prev}B→${curr}B: 时间${trend} ${(Math.abs(ratio-1)*100).toFixed(1)}%`, 'model-guess');
+                            const trend = ratio > 1 ? "increased" : "decreased";
+                            addResult(`     ${prev}B→${curr}B: Time ${trend} ${(Math.abs(ratio-1)*100).toFixed(1)}%`, 'model-guess');
                         }
 
                         prefetchEfficiency = null;
                     }
                 } else {
-                    addResult(`   ⚠️ 预取器分析: 有效测试数据不足 (${validStrides.length}个有效步长)`, 'limitation');
+                    addResult(`   Warning: Prefetcher analysis insufficient data (${validStrides.length} valid strides)`, 'limitation');
                 }
 
                 // WASM专用CPU识别算法
@@ -558,7 +558,7 @@
                 const avgMemRatio = memoryTests.length > 0 ?
                     memoryTests.reduce((a, b) => a + b) / memoryTests.length : memRatio;
 
-                let wasmCpuType = "未知架构";
+                let wasmCpuType = "Unknown Architecture";
                 let confidence = 30;
                 let evidence = [];
 
@@ -620,35 +620,35 @@
                     }
                 }
 
-                addResult('🎯 WASM专业分析结果:', 'model-guess');
-                addResult(`   CPU架构: <span class="highlight">${wasmCpuType}</span>`, 'model-guess');
-                addResult(`   WASM检测置信度: <span class="highlight">${confidence}%</span>`, 'model-guess');
+                addResult('WASM Professional Analysis Results:', 'model-guess');
+                addResult(`   CPU Architecture: <span class="highlight">${wasmCpuType}</span>`, 'model-guess');
+                addResult(`   WASM Detection Confidence: <span class="highlight">${confidence}%</span>`, 'model-guess');
 
                 if (evidence.length > 0) {
-                    addResult('   WASM分析依据:', 'model-guess');
-                    evidence.forEach(ev => addResult(`     • ${ev}`, 'model-guess'));
+                    addResult('   WASM Analysis Basis:', 'model-guess');
+                    evidence.forEach(ev => addResult(`     - ${ev}`, 'model-guess'));
                 }
 
-                addResult('💡 WASM独特优势:', 'cpu-info');
-                addResult('   • 直接访问CPU微架构特征', 'cpu-info');
-                addResult('   • 绕过操作系统抽象层', 'cpu-info');
-                addResult('   • 精确的缓存层次分析', 'cpu-info');
-                addResult('   • 预取器行为检测', 'cpu-info');
-                addResult('   • 跨平台一致性检测', 'cpu-info');
+                addResult('WASM Unique Advantages:', 'cpu-info');
+                addResult('   - Direct access to CPU microarchitecture features', 'cpu-info');
+                addResult('   - Bypass operating system abstraction layer', 'cpu-info');
+                addResult('   - Precise cache hierarchy analysis', 'cpu-info');
+                addResult('   - Prefetcher behavior detection', 'cpu-info');
+                addResult('   - Cross-platform consistency detection', 'cpu-info');
 
-                addResult('⚠️ WASM检测限制:', 'limitation');
-                addResult('   • 受浏览器安全策略影响', 'limitation');
-                addResult('   • 无法获取具体型号信息', 'limitation');
-                addResult('   • 精度受执行环境标准化影响', 'limitation');
+                addResult('WASM Detection Limitations:', 'limitation');
+                addResult('   - Affected by browser security policies', 'limitation');
+                addResult('   - Cannot obtain specific model information', 'limitation');
+                addResult('   - Accuracy affected by execution environment standardization', 'limitation');
 
             } catch (error) {
-                addResult(`❌ WASM基础检测失败: ${error.message}`, 'limitation');
+                addResult(`WASM Basic Detection Failed: ${error.message}`, 'limitation');
             }
         }
 
         async function runEnhancedDetection() {
             try {
-                addResult('=== 🚀 理论增强检测方案 ===', 'enhancement');
+                addResult('===  理论增强检测方案 ===', 'enhancement');
 
                 addResult('🔬 增强检测需要的技术:', 'enhancement');
                 addResult('   1. <span class="highlight">更多微基准测试</span> - 缓存大小、TLB特性、预取行为', 'enhancement');
@@ -669,10 +669,10 @@
                 ];
 
                 for (const sig of signatures) {
-                    addResult(`   • ${sig}`, 'enhancement');
+                    addResult(`   - ${sig}`, 'enhancement');
                 }
 
-                addResult('🎯 理论可识别的CPU型号:', 'model-guess');
+                addResult(' 理论可识别的CPU型号:', 'model-guess');
                 const cpuModels = [
                     { family: 'Intel', models: ['i5-8250U', 'i7-10700K', 'i9-11900K'], signature: '低内存比例 + 高浮点性能' },
                     { family: 'AMD', models: ['Ryzen 5 3600', 'Ryzen 7 5800X'], signature: '中等内存比例 + 优秀整数性能' },
@@ -700,19 +700,19 @@
 
                 output.appendChild(signatureDiv);
 
-                addResult('⚠️ 实现挑战:', 'limitation');
-                addResult('   • 浏览器安全策略限制高精度计时', 'limitation');
-                addResult('   • WASM执行环境标准化降低硬件差异', 'limitation');
-                addResult('   • 需要大量真实设备数据训练模型', 'limitation');
+                addResult(' 实现挑战:', 'limitation');
+                addResult('   - 浏览器安全策略限制高精度计时', 'limitation');
+                addResult('   - WASM执行环境标准化降低硬件差异', 'limitation');
+                addResult('   - 需要大量真实设备数据训练模型', 'limitation');
 
             } catch (error) {
-                addResult(`❌ 增强检测分析失败: ${error.message}`, 'limitation');
+                addResult(` 增强检测分析失败: ${error.message}`, 'limitation');
             }
         }
 
         async function analyzeSignatures() {
             try {
-                addResult('=== 🧬 当前设备特征签名分析 ===', 'enhancement');
+                addResult('===  当前设备特征签名分析 ===', 'enhancement');
                 const Module = await initWASM();
 
                 // 多维度特征提取
@@ -791,7 +791,7 @@
                 }
 
                 // 计算特征 - 平衡的迭代次数
-                addResult('⚡ 计算性能测试...', 'enhancement');
+                addResult(' 计算性能测试...', 'enhancement');
                 features.float_precision = Module._float_precision_test(2000);
                 features.integer_opt = Module._integer_optimization_test(2000);
                 features.branch_pred = Module._branch_prediction_test(3000);
@@ -870,17 +870,17 @@
                     }
 
                     if (!trendConsistent) {
-                        addResult(`⚠️ 步长测试数据异常（存在10倍以上的突变）`, 'limitation');
+                        addResult(` 步长测试数据异常（存在10倍以上的突变）`, 'limitation');
                         prefetchEfficiency = null;
                     } else {
                         const trendDesc = strongPrefetcher ? "强预取器特征" : "标准缓存特征";
-                        addResult(`📊 ${trendDesc}: ${smallStride.label}(${smallStride.time.toFixed(1)}ms) vs ${largeStride.label}(${largeStride.time.toFixed(1)}ms)`, 'enhancement');
+                        addResult(` ${trendDesc}: ${smallStride.label}(${smallStride.time.toFixed(1)}ms) vs ${largeStride.label}(${largeStride.time.toFixed(1)}ms)`, 'enhancement');
 
                         // 对于强预取器，调整效率计算方法
                         if (strongPrefetcher) {
                             // 强预取器的效率使用倒数关系更合理
                             prefetchEfficiency = largeStride.time / smallStride.time;
-                            addResult(`🔍 检测到强预取器模式，使用调整后的计算方法`, 'enhancement');
+                            addResult(` 检测到强预取器模式，使用调整后的计算方法`, 'enhancement');
                         }
                     }
                 } else if (validStrides.length >= 2) {
@@ -888,11 +888,11 @@
                     const first = validStrides[0];
                     const last = validStrides[validStrides.length - 1];
                     prefetchEfficiency = first.time / last.time;
-                    addResult(`⚠️ 步长测试数据有限，使用${first.label}vs${last.label}计算`, 'limitation');
+                    addResult(` 步长测试数据有限，使用${first.label}vs${last.label}计算`, 'limitation');
                 } else {
                     // 测试数据太少
                     prefetchEfficiency = null;
-                    addResult(`❌ 预取器测试失效 - 有效步长测试少于2个`, 'limitation');
+                    addResult(` 预取器测试失效 - 有效步长测试少于2个`, 'limitation');
                 }
 
                 features.prefetch_efficiency = prefetchEfficiency;
@@ -942,9 +942,9 @@
                     }
 
                     features.prefetch_strength = prefetchStrength; // 保存预取器强度
-                    addResult(`🔮 预取器效率: ${prefetchEfficiency.toFixed(2)}${interpretation}`, 'enhancement');
+                    addResult(` 预取器效率: ${prefetchEfficiency.toFixed(2)}${interpretation}`, 'enhancement');
                 } else {
-                    addResult(`🔮 预取器效率: 测试无效`, 'limitation');
+                    addResult(` 预取器效率: 测试无效`, 'limitation');
                 }
 
                 // CPU压力特征测试 - 测试多核性能退化曲线
@@ -1021,10 +1021,10 @@
                 // 验证缓存冲突测试的有效性
                 if (validConflictTests >= 2 && worstConflict > 0.1) {
                     features.cache_conflict_sensitivity = worstConflict;
-                    addResult(`⚡ 缓存冲突敏感度: ${worstConflict.toFixed(3)} (Intel通常<1.5, AMD可能>1.5)`, 'enhancement');
+                    addResult(` 缓存冲突敏感度: ${worstConflict.toFixed(3)} (Intel通常<1.5, AMD可能>1.5)`, 'enhancement');
                 } else {
                     features.cache_conflict_sensitivity = 1.0; // 默认值
-                    addResult(`⚠️ 缓存冲突测试精度不足 (有效测试${validConflictTests}个)`, 'limitation');
+                    addResult(` 缓存冲突测试精度不足 (有效测试${validConflictTests}个)`, 'limitation');
                 }
 
                 // 特殊运算指纹测试
@@ -1050,7 +1050,7 @@
 
                 if (typeof features.simd_supported === 'boolean') {
                     const simdStatus = features.simd_supported ? '支持 (WASM SIMD 已启用)' : '未检测到';
-                    addResult(`🧬 SIMD指令扩展: ${simdStatus}`, features.simd_supported ? 'cpu-info' : 'limitation');
+                    addResult(` SIMD指令扩展: ${simdStatus}`, features.simd_supported ? 'cpu-info' : 'limitation');
 
                     if (features.simd_supported && typeof features.simd_speedup === 'number' && isFinite(features.simd_speedup)) {
                         addResult(`   SIMD相对整数速度: ${features.simd_speedup.toFixed(2)}x`, 'cpu-info');
@@ -1074,10 +1074,10 @@
                     }
                 }
 
-                addResult('📊 设备特征签名:', 'cpu-info');
+                addResult(' 设备特征签名:', 'cpu-info');
 
                 // 分组显示内存测试结果，便于观察缓存边界
-                addResult('🧠 内存访问模式 (寻找缓存边界):', 'cpu-info');
+                addResult(' 内存访问模式 (寻找缓存边界):', 'cpu-info');
                 const memoryTests = Object.entries(features)
                     .filter(([k, v]) => k.startsWith('mem_ratio'))
                     .sort((a, b) => {
@@ -1091,10 +1091,10 @@
                     const color = value > 1.6 ? 'style="color: #f85149; font-weight: bold;"' :
                                   value > 1.4 ? 'style="color: #f0d000; font-weight: bold;"' :
                                   'style="color: #56d364;"';
-                    addResult(`   ${size}KB: <span class="highlight" ${color}>${value.toFixed(4)}</span> ${value > 1.6 ? '⚠️ 确定的缓存边界' : value > 1.4 ? '🔶 可能的边界' : ''}`, 'cpu-info');
+                    addResult(`   ${size}KB: <span class="highlight" ${color}>${value.toFixed(4)}</span> ${value > 1.6 ? ' 确定的缓存边界' : value > 1.4 ? '🔶 可能的边界' : ''}`, 'cpu-info');
                 }
 
-                addResult('⚡ 计算性能特征:', 'cpu-info');
+                addResult(' 计算性能特征:', 'cpu-info');
                 const hiddenKeys = new Set([
                     'mem_ratio_l1_band',
                     'mem_ratio_deep',
@@ -1180,7 +1180,7 @@
                     });
                 }
 
-                addResult('🔍 缓存边界分析:', 'model-guess');
+                addResult(' 缓存边界分析:', 'model-guess');
                 if (cacheTransitions.length > 0) {
                     for (const transition of cacheTransitions) {
                         addResult(`   ${transition.boundary} (性能跳跃${transition.jump.toFixed(2)}x)`, 'model-guess');
@@ -1208,7 +1208,7 @@
                     const avgL2 = l2Ratios.length > 0 ? l2Ratios.reduce((a, b) => a + b) / l2Ratios.length : 1.0;
                     const avgL3 = l3Ratios.length > 0 ? l3Ratios.reduce((a, b) => a + b) / l3Ratios.length : 1.0;
 
-                    addResult(`📊 缓存层级分析: L1平均=${avgL1.toFixed(3)}, L2平均=${avgL2.toFixed(3)}, L3平均=${avgL3.toFixed(3)}`, 'model-guess');
+                    addResult(` 缓存层级分析: L1平均=${avgL1.toFixed(3)}, L2平均=${avgL2.toFixed(3)}, L3平均=${avgL3.toFixed(3)}`, 'model-guess');
 
                     // 清理版CPU特征检测算法
                     let score = { apple: 0, intel: 0, amd: 0 };
@@ -1234,23 +1234,23 @@
 
                     if (hasLargeL1) {
                         score.apple += 2;
-                        featureLog.push("✓ 大L1缓存特征 (+2 Apple)");
+                        featureLog.push(" 大L1缓存特征 (+2 Apple)");
                     }
                     if (hasStrongPrefetch) {
                         score.apple += hasUltraPrefetch ? 3 : 2;
-                        featureLog.push(hasUltraPrefetch ? "✓ 超强预取器 (+3 Apple)" : "✓ 强预取器 (+2 Apple)");
+                        featureLog.push(hasUltraPrefetch ? " 超强预取器 (+3 Apple)" : " 强预取器 (+2 Apple)");
                     }
                     if (hasUnifiedMemory) {
                         score.apple += 2;
-                        featureLog.push("✓ 统一内存架构 (+2 Apple)");
+                        featureLog.push(" 统一内存架构 (+2 Apple)");
                     }
                     if (hasLowPressureDrop) {
                         score.apple += 1;
-                        featureLog.push("✓ 抗压能力强 (+1 Apple)");
+                        featureLog.push(" 抗压能力强 (+1 Apple)");
                     }
                     if (hasAppleCache) {
                         score.apple += 3;
-                        featureLog.push("✓ Apple独特缓存架构 (+3 Apple)");
+                        featureLog.push(" Apple独特缓存架构 (+3 Apple)");
                     }
 
                     // Intel特征评分 (降低权重避免与Apple混淆)
@@ -1264,19 +1264,19 @@
 
                     if (hasTypicalL2 && isNotApple) {
                         score.intel += 2;
-                        featureLog.push("✓ 典型L2缓存特征 (+2 Intel)");
+                        featureLog.push(" 典型L2缓存特征 (+2 Intel)");
                     }
                     if (hasGoodDivision && isNotApple) {
                         score.intel += 2;
-                        featureLog.push("✓ 除法单元高效 (+2 Intel)");
+                        featureLog.push(" 除法单元高效 (+2 Intel)");
                     }
                     if (hasLowConflict && isNotApple) {
                         score.intel += 1;
-                        featureLog.push("✓ 低缓存冲突 (+1 Intel)");
+                        featureLog.push(" 低缓存冲突 (+1 Intel)");
                     }
                     if (hasPositiveInt && isNotApple) {
                         score.intel += 1;
-                        featureLog.push("✓ 整数优化正向 (+1 Intel)");
+                        featureLog.push(" 整数优化正向 (+1 Intel)");
                     }
 
                     // AMD特征评分
@@ -1287,42 +1287,42 @@
 
                     if (hasStrongL3) {
                         score.amd += 2;
-                        featureLog.push("✓ 强L3缓存特征 (+2 AMD)");
+                        featureLog.push(" 强L3缓存特征 (+2 AMD)");
                     }
                     if (hasPoorDivision) {
                         score.amd += 2;
-                        featureLog.push("✓ 除法相对较慢 (+2 AMD)");
+                        featureLog.push(" 除法相对较慢 (+2 AMD)");
                     }
                     if (hasHighConflict) {
                         score.amd += 1;
-                        featureLog.push("✓ 缓存冲突敏感 (+1 AMD)");
+                        featureLog.push(" 缓存冲突敏感 (+1 AMD)");
                     }
                     if (hasNegativeInt) {
                         score.amd += 1;
-                        featureLog.push("✓ 特殊整数特征 (+1 AMD)");
+                        featureLog.push(" 特殊整数特征 (+1 AMD)");
                     }
 
                     if (simdSupported) {
                         score.apple += 1;
                         score.intel += 1;
-                        featureLog.push("✓ WASM SIMD支持 (+1 Apple/+1 Intel)");
+                        featureLog.push(" WASM SIMD支持 (+1 Apple/+1 Intel)");
                     }
 
                     if (workerCap && workerCap >= 16) {
                         score.intel += 2;
                         score.apple += 1;
-                        featureLog.push(`✓ Worker并发≥${workerCap} (+2 Intel, +1 Apple)`);
+                        featureLog.push(` Worker并发≥${workerCap} (+2 Intel, +1 Apple)`);
                     } else if (workerCap && workerCap >= 10) {
                         score.apple += 1;
-                        featureLog.push(`✓ Worker并发≥${workerCap} (+1 Apple)`);
+                        featureLog.push(` Worker并发≥${workerCap} (+1 Apple)`);
                     }
 
                     if (logicalCores && logicalCores >= 16) {
                         score.intel += 2;
-                        featureLog.push(`✓ 硬件并发≈${logicalCores} (+2 Intel)`);
+                        featureLog.push(` 硬件并发≈${logicalCores} (+2 Intel)`);
                     } else if (logicalCores && logicalCores >= 10) {
                         score.apple += 1;
-                        featureLog.push(`✓ 硬件并发≈${logicalCores} (+1 Apple)`);
+                        featureLog.push(` 硬件并发≈${logicalCores} (+1 Apple)`);
                     }
 
                     // 根据得分确定结果
@@ -1372,35 +1372,35 @@
                     confidence = "很低";
                 }
 
-                addResult(`🎯 型号推测: <span class="highlight">${modelGuess}</span>`, 'model-guess');
-                addResult(`📊 置信度: <span class="highlight">${confidence}</span> (基于${validMemRatios.length}个有效特征)`, 'model-guess');
+                addResult(` 型号推测: <span class="highlight">${modelGuess}</span>`, 'model-guess');
+                addResult(` 置信度: <span class="highlight">${confidence}</span> (基于${validMemRatios.length}个有效特征)`, 'model-guess');
 
                 // 显示证据点
                 if (evidencePoints.length > 0) {
-                    addResult('🔍 识别依据:', 'model-guess');
+                    addResult(' 识别依据:', 'model-guess');
                     for (const evidence of evidencePoints) {
-                        addResult(`   • ${evidence}`, 'model-guess');
+                        addResult(`   - ${evidence}`, 'model-guess');
                     }
                 }
 
-                addResult('⚠️ 注意: 这只是基于有限特征的推测，实际准确性受多种因素影响', 'limitation');
+                addResult(' 注意: 这只是基于有限特征的推测，实际准确性受多种因素影响', 'limitation');
 
                 // 执行结果验证
                 const validation = validateTestResults(features);
                 if (validation.issues.length > 0 || validation.warnings.length > 0) {
-                    addResult('🔍 测试质量评估:', 'enhancement');
+                    addResult(' 测试质量评估:', 'enhancement');
 
                     if (validation.issues.length > 0) {
-                        addResult('❌ 发现的问题:', 'limitation');
+                        addResult(' 发现的问题:', 'limitation');
                         validation.issues.forEach(issue => {
-                            addResult(`   • ${issue}`, 'limitation');
+                            addResult(`   - ${issue}`, 'limitation');
                         });
                     }
 
                     if (validation.warnings.length > 0) {
-                        addResult('⚠️ 警告:', 'limitation');
+                        addResult(' 警告:', 'limitation');
                         validation.warnings.forEach(warning => {
-                            addResult(`   • ${warning}`, 'limitation');
+                            addResult(`   - ${warning}`, 'limitation');
                         });
                     }
 
@@ -1412,13 +1412,13 @@
                     else if (qualityScore >= 40) qualityLevel = "一般";
                     else qualityLevel = "较差";
 
-                    addResult(`📊 测试质量评分: ${qualityScore}/100 (${qualityLevel})`, 'enhancement');
+                    addResult(` 测试质量评分: ${qualityScore}/100 (${qualityLevel})`, 'enhancement');
                 } else {
-                    addResult('✅ 测试质量: 优秀 (未发现明显问题)', 'enhancement');
+                    addResult(' 测试质量: 优秀 (未发现明显问题)', 'enhancement');
                 }
 
             } catch (error) {
-                addResult(`❌ 特征分析失败: ${error.message}`, 'limitation');
+                addResult(` 特征分析失败: ${error.message}`, 'limitation');
             }
         }
 
@@ -1435,28 +1435,28 @@
                     return;
                 }
 
-                addResult('🔍 GPU基础信息:', 'cpu-info');
+                addResult(' GPU基础信息:', 'cpu-info');
                 addResult(`   厂商: ${fingerprint.basic.vendor}`, 'cpu-info');
                 addResult(`   渲染器: ${fingerprint.basic.renderer}`, 'cpu-info');
                 addResult(`   版本: ${fingerprint.basic.version}`, 'cpu-info');
 
-                addResult('📊 扩展支持:', 'cpu-info');
+                addResult(' 扩展支持:', 'cpu-info');
                 addResult(`   总扩展数: ${fingerprint.extensions.count}`, 'cpu-info');
                 addResult(`   重要扩展: ${fingerprint.extensions.important.length}`, 'cpu-info');
 
-                addResult('🎯 Canvas指纹:', 'cpu-info');
+                addResult(' Canvas指纹:', 'cpu-info');
                 addResult(`   主指纹: ${fingerprint.canvasHash}`, 'cpu-info');
                 const canvasVariants = fingerprint.canvasVariants || {};
                 const variantEntries = Object.entries(canvasVariants);
                 if (variantEntries.length > 0) {
                     addResult('   指纹变体:', 'cpu-info');
                     variantEntries.forEach(([variantKey, variantValue]) => {
-                        addResult(`     • ${variantKey}: ${variantValue}`, 'cpu-info');
+                        addResult(`     - ${variantKey}: ${variantValue}`, 'cpu-info');
                     });
                 }
 
                 if (fingerprint.performance) {
-                    addResult('⚡ 渲染性能:', 'cpu-info');
+                    addResult(' 渲染性能:', 'cpu-info');
                     addResult(`   简单渲染: ${fingerprint.performance.simpleRender?.toFixed(2)}ms`, 'cpu-info');
                     addResult(`   复杂渲染: ${fingerprint.performance.complexRender?.toFixed(2)}ms`, 'cpu-info');
                     addResult(`   纹理操作: ${fingerprint.performance.textureOps?.toFixed(2)}ms`, 'cpu-info');
@@ -1464,27 +1464,27 @@
 
                 // GPU型号分析
                 const analysis = webglFP.analyzeGPUModel(fingerprint);
-                addResult('🎯 WebGL GPU型号推测:', 'model-guess');
+                addResult(' WebGL GPU型号推测:', 'model-guess');
                 addResult(`   型号: ${analysis.model}`, 'model-guess');
                 addResult(`   置信度: ${analysis.confidence}%`, 'model-guess');
                 if (analysis.evidence.length > 0) {
                     addResult('   推测依据:', 'model-guess');
                     analysis.evidence.forEach(evidence => {
-                        addResult(`     • ${evidence}`, 'model-guess');
+                        addResult(`     - ${evidence}`, 'model-guess');
                     });
                 }
 
                 webglFP.cleanup();
 
             } catch (error) {
-                addResult(`⚠️ WebGL检测异常: ${error.message}`, 'limitation');
+                addResult(` WebGL检测异常: ${error.message}`, 'limitation');
             }
         }
 
         // WebGPU检测函数
         async function runWebGPUDetection() {
             try {
-                addResult('=== ⚡ WebGPU GPU检测 ===', 'enhancement');
+                addResult('===  WebGPU GPU检测 ===', 'enhancement');
 
                 const webgpuFP = new WebGPUFingerprinter();
                 const fingerprint = await webgpuFP.generateFingerprint();
@@ -1494,7 +1494,7 @@
                     return;
                 }
 
-                addResult('🔍 GPU适配器信息:', 'cpu-info');
+                addResult(' GPU适配器信息:', 'cpu-info');
                 const adapter = fingerprint.adapter;
                 addResult(`   厂商: ${adapter.vendor || '未知'}`, 'cpu-info');
                 addResult(`   架构: ${adapter.architecture || '未知'}`, 'cpu-info');
@@ -1545,20 +1545,20 @@
 
                 // GPU型号分析
                 const analysis = webgpuFP.analyzeGPUModel(fingerprint);
-                addResult('🎯 WebGPU GPU型号推测:', 'model-guess');
+                addResult(' WebGPU GPU型号推测:', 'model-guess');
                 addResult(`   型号: ${analysis.model}`, 'model-guess');
                 addResult(`   置信度: ${analysis.confidence}%`, 'model-guess');
                 if (analysis.evidence.length > 0) {
                     addResult('   推测依据:', 'model-guess');
                     analysis.evidence.forEach(evidence => {
-                        addResult(`     • ${evidence}`, 'model-guess');
+                        addResult(`     - ${evidence}`, 'model-guess');
                     });
                 }
 
                 webgpuFP.cleanup();
 
             } catch (error) {
-                addResult(`⚠️ WebGPU检测异常: ${error.message}`, 'limitation');
+                addResult(` WebGPU检测异常: ${error.message}`, 'limitation');
             }
         }
 
@@ -1602,7 +1602,7 @@
                     wasmFingerprint = await wasmHelper.generateFingerprint();
                 } catch (err) {
                     errors.wasm = err?.message || String(err);
-                    addResult(`⚠️ 无法获取 WASM 指纹: ${errors.wasm}`, 'limitation');
+                    addResult(` 无法获取 WASM 指纹: ${errors.wasm}`, 'limitation');
                 }
 
                 let webglFingerprint = null;
@@ -1615,7 +1615,7 @@
                     }
                 } catch (err) {
                     errors.webgl = err?.message || String(err);
-                    addResult(`⚠️ 无法获取 WebGL 指纹: ${errors.webgl}`, 'limitation');
+                    addResult(` 无法获取 WebGL 指纹: ${errors.webgl}`, 'limitation');
                 }
 
                 let webgpuFingerprint = null;
@@ -1628,7 +1628,7 @@
                     }
                 } catch (err) {
                     errors.webgpu = err?.message || String(err);
-                    addResult(`⚠️ 无法获取 WebGPU 指纹: ${errors.webgpu}`, 'limitation');
+                    addResult(` 无法获取 WebGPU 指纹: ${errors.webgpu}`, 'limitation');
                 }
 
                 const sample = {
@@ -1656,20 +1656,20 @@
                 URL.revokeObjectURL(url);
 
                 if (Object.keys(errors).length) {
-                    addResult('⚠️ 样本已导出，但包含部分缺失字段；请查看 JSON 中的 errors。', 'limitation');
+                    addResult(' 样本已导出，但包含部分缺失字段；请查看 JSON 中的 errors。', 'limitation');
                 } else {
-                    addResult('✅ 样本已导出，请将JSON放入 docs/device-database/samples/ 后运行 ingest。', 'cpu-info');
+                    addResult(' 样本已导出，请将JSON放入 docs/device-database/samples/ 后运行 ingest。', 'cpu-info');
                 }
 
             } catch (error) {
                 console.error('exportCalibrationSample failed', error);
-                addResult(`❌ 样本导出失败: ${error.message}`, 'limitation');
+                addResult(` 样本导出失败: ${error.message}`, 'limitation');
             }
         }
 
         async function runRealWorldDetection() {
             try {
-                addResult('=== 🛰️ 真实环境检测启动 ===', 'enhancement');
+                addResult('===  真实环境检测启动 ===', 'enhancement');
                 await initWASM();
                 await ensureCommonLoaded();
 
@@ -1685,23 +1685,23 @@
                 addResult(`   deviceMemory: ${report.basic.deviceMemory ?? '未知'} GB`, 'cpu-info');
                 addResult(`   platform: ${report.basic.platform ?? '未知'}`, 'cpu-info');
 
-                addResult('🚀 高级能力探测:', 'enhancement');
-                const simdStatus = report.advanced.simd === null ? '未知' : (report.advanced.simd ? '✔️ 支持SIMD' : '❌ 不支持SIMD');
+                addResult(' 高级能力探测:', 'enhancement');
+                const simdStatus = report.advanced.simd === null ? '未知' : (report.advanced.simd ? '✔️ 支持SIMD' : ' 不支持SIMD');
                 const simdClass = report.advanced.simd === true ? 'cpu-info' : (report.advanced.simd === false ? 'limitation' : 'enhancement');
                 addResult(`   SIMD: ${simdStatus}`, simdClass);
-                const sabStatus = report.advanced.sharedArrayBuffer ? '✔️ 可用' : '❌ 不可用';
+                const sabStatus = report.advanced.sharedArrayBuffer ? '✔️ 可用' : ' 不可用';
                 addResult(`   SharedArrayBuffer: ${sabStatus}`, report.advanced.sharedArrayBuffer ? 'cpu-info' : 'limitation');
                 if (report.advanced.webgpu.available) {
-                    const detected = report.advanced.webgpu.detected ? '✔️ 已获取指纹' : '⚠️ 可用但采集失败';
+                    const detected = report.advanced.webgpu.detected ? '✔️ 已获取指纹' : ' 可用但采集失败';
                     addResult(`   WebGPU: ${detected}`, report.advanced.webgpu.detected ? 'cpu-info' : 'limitation');
                     if (report.advanced.webgpu.analysis) {
-                        addResult(`     • ${report.advanced.webgpu.analysis.model} (${report.advanced.webgpu.analysis.confidence}%)`, 'cpu-info');
+                        addResult(`     - ${report.advanced.webgpu.analysis.model} (${report.advanced.webgpu.analysis.confidence}%)`, 'cpu-info');
                     }
                     if (report.advanced.webgpu.error) {
-                        addResult(`     • 错误: ${report.advanced.webgpu.error}`, 'limitation');
+                        addResult(`     - 错误: ${report.advanced.webgpu.error}`, 'limitation');
                     }
                 } else {
-                    addResult('   WebGPU: ❌ 不可用', 'limitation');
+                    addResult('   WebGPU:  不可用', 'limitation');
                 }
 
                 addResult('🔄 Fallback特征:', 'cpu-info');
@@ -1720,16 +1720,16 @@
                 }
                 const fallbackErrors = Object.entries(report.fallback.errors || {});
                 if (fallbackErrors.length) {
-                    addResult('   ⚠️ Fallback错误:', 'limitation');
-                    fallbackErrors.forEach(([key, message]) => addResult(`     • ${key}: ${message}`, 'limitation'));
+                    addResult('    Fallback错误:', 'limitation');
+                    fallbackErrors.forEach(([key, message]) => addResult(`     - ${key}: ${message}`, 'limitation'));
                 }
 
-                addResult('🎯 综合结论:', 'model-guess');
+                addResult(' 综合结论:', 'model-guess');
                 addResult(`   判定设备: ${report.analysis.device}`, 'model-guess');
                 addResult(`   方法: ${report.analysis.method} (${report.analysis.tier})`, 'model-guess');
                 addResult(`   置信度: ${report.analysis.confidence}%`, 'model-guess');
                 if (Array.isArray(report.analysis.evidence) && report.analysis.evidence.length) {
-                    report.analysis.evidence.forEach(ev => addResult(`   • ${ev}`, 'model-guess'));
+                    report.analysis.evidence.forEach(ev => addResult(`   - ${ev}`, 'model-guess'));
                 }
 
                 const dbSignal = report.analysis.signals?.databaseResult;
@@ -1747,19 +1747,19 @@
                 }
 
                 if (typeof report.durationMs === 'number') {
-                    addResult(`✅ 检测总耗时: ${report.durationMs.toFixed(1)}ms`, 'cpu-info');
+                    addResult(` 检测总耗时: ${report.durationMs.toFixed(1)}ms`, 'cpu-info');
                 }
 
             } catch (error) {
                 console.error('runRealWorldDetection failed', error);
-                addResult(`❌ 真实环境检测失败: ${error.message}`, 'limitation');
+                addResult(` 真实环境检测失败: ${error.message}`, 'limitation');
             }
         }
 
         // 三重检测函数 - 核心功能
         async function runTripleDetection() {
             try {
-                addResult('=== 🚀 三重检测系统启动 ===', 'enhancement');
+                addResult('===  三重检测系统启动 ===', 'enhancement');
                 addResult('正在执行 WASM + WebGL + WebGPU 综合检测...', 'enhancement');
 
                 // 1. WASM CPU检测
@@ -1785,7 +1785,7 @@
                 const cpuFeatures = wasmSummary.cpuFeatures;
                 const cpuAnalysis = wasmSummary.cpuAnalysis;
 
-                addResult(`✓ CPU特征: ${cpuFeatures.model} (置信度: ${cpuFeatures.confidence}%)`, 'cpu-info');
+                addResult(` CPU特征: ${cpuFeatures.model} (置信度: ${cpuFeatures.confidence}%)`, 'cpu-info');
 
                 if (typeof cpuFeatures.memRatio === 'number') {
                     addResult(`   内存访问比例: ${cpuFeatures.memRatio.toFixed(3)}`, 'cpu-info');
@@ -1796,7 +1796,7 @@
                 }
 
                 if (Array.isArray(cpuAnalysis?.evidence) && cpuAnalysis.evidence.length) {
-                    cpuAnalysis.evidence.forEach(e => addResult(`   • ${e}`, 'cpu-info'));
+                    cpuAnalysis.evidence.forEach(e => addResult(`   - ${e}`, 'cpu-info'));
                 }
 
                 const wasmFeatureSet = wasmFingerprintData?.features || {};
@@ -1822,25 +1822,25 @@
                 const webglAnalysis = webglFingerprint ? webglFP.analyzeGPUModel(webglFingerprint) : null;
 
                 if (webglAnalysis) {
-                    addResult(`✓ WebGL GPU: ${webglAnalysis.model} (置信度: ${webglAnalysis.confidence}%)`, 'enhancement');
+                    addResult(` WebGL GPU: ${webglAnalysis.model} (置信度: ${webglAnalysis.confidence}%)`, 'enhancement');
                 } else {
                     addResult('✗ WebGL检测失败', 'limitation');
                 }
 
                 // 3. WebGPU检测
-                addResult('⚡ 第三阶段: WebGPU高级检测', 'enhancement');
+                addResult(' 第三阶段: WebGPU高级检测', 'enhancement');
                 const webgpuFP = new WebGPUFingerprinter();
                 const webgpuFingerprint = await webgpuFP.generateFingerprint();
                 const webgpuAnalysis = webgpuFingerprint ? webgpuFP.analyzeGPUModel(webgpuFingerprint) : null;
 
                 if (webgpuAnalysis) {
-                    addResult(`✓ WebGPU GPU: ${webgpuAnalysis.model} (置信度: ${webgpuAnalysis.confidence}%)`, 'enhancement');
+                    addResult(` WebGPU GPU: ${webgpuAnalysis.model} (置信度: ${webgpuAnalysis.confidence}%)`, 'enhancement');
                 } else {
                     addResult('✗ WebGPU检测失败', 'limitation');
                 }
 
                 // 4. 综合分析和设备识别
-                addResult('🧠 第四阶段: 综合分析与设备识别', 'model-guess');
+                addResult(' 第四阶段: 综合分析与设备识别', 'model-guess');
 
                 // 初始化设备数据库
                 if (!deviceDatabase) {
@@ -1855,15 +1855,15 @@
                 const databaseResult = deviceDatabase.identifyDevice(cpuFeatures, webglAnalysis, webgpuAnalysis);
                 const deviceIdentification = enhanceWithDatabase(cpuFeatures, webglAnalysis, webgpuAnalysis, databaseResult);
 
-                addResult('🎯 最终设备识别结果:', 'model-guess');
+                addResult(' 最终设备识别结果:', 'model-guess');
                 addResult(`   设备型号: ${deviceIdentification.deviceModel}`, 'model-guess');
                 addResult(`   CPU型号: ${deviceIdentification.cpuModel}`, 'model-guess');
                 addResult(`   GPU型号: ${deviceIdentification.gpuModel}`, 'model-guess');
                 addResult(`   综合置信度: ${deviceIdentification.confidence}%`, 'model-guess');
 
-                addResult('🔍 识别依据:', 'model-guess');
+                addResult(' 识别依据:', 'model-guess');
                 deviceIdentification.evidence.forEach(evidence => {
-                    addResult(`   • ${evidence}`, 'model-guess');
+                    addResult(`   - ${evidence}`, 'model-guess');
                 });
 
                 // 清理
@@ -1871,7 +1871,7 @@
                 if (webgpuFP) webgpuFP.cleanup();
 
             } catch (error) {
-                addResult(`❌ 三重检测失败: ${error.message}`, 'limitation');
+                addResult(` 三重检测失败: ${error.message}`, 'limitation');
             }
         }
 
@@ -1884,7 +1884,7 @@
             const fingerprint = await wasmHelper.generateFingerprint();
             const cpuAnalysis = typeof wasmHelper.analyzeCPUType === 'function'
                 ? wasmHelper.analyzeCPUType(fingerprint)
-                : { family: '未知架构', confidence: 50 };
+                : { family: 'Unknown Architecture', confidence: 50 };
 
             let memRatio = null;
             if (typeof wasmHelper._safeOverallRatio === 'function') {
@@ -1908,7 +1908,7 @@
                 ? cpuAnalysis.deepBand : null;
 
             const cpuFeatures = {
-                model: cpuAnalysis.family || '未知架构',
+                model: cpuAnalysis.family || 'Unknown Architecture',
                 confidence: cpuAnalysis.confidence ?? 50,
                 memRatio: (typeof memRatio === 'number' && isFinite(memRatio)) ? memRatio : null,
                 memRatioL1: l1Band,
@@ -2114,7 +2114,7 @@
                         webgpuAnalysis.model : webglAnalysis?.model || "未知GPU",
                     confidence: databaseResult.confidence,
                     evidence: [
-                        `🎯 数据库精确匹配 (${databaseResult.confidence}% 置信度)`,
+                        ` 数据库精确匹配 (${databaseResult.confidence}% 置信度)`,
                         ...databaseResult.evidence,
                         ...(databaseResult.alternatives.length > 0 ?
                             [`备选方案: ${databaseResult.alternatives.map(alt => `${alt.brand} ${alt.deviceName}`).join(', ')}`] : [])
@@ -2132,7 +2132,7 @@
                 return {
                     ...traditional,
                     evidence: [
-                        `⚠️ 数据库匹配度较低 (${databaseResult.confidence}%)，使用传统分析`,
+                        ` 数据库匹配度较低 (${databaseResult.confidence}%)，使用传统分析`,
                         ...traditional.evidence,
                         ...(databaseResult.confidence > 30 ?
                             [`相似设备: ${databaseResult.deviceModel}`] : [])
@@ -2144,7 +2144,7 @@
         // 显示设备数据库统计
         function showDatabaseStats() {
             try {
-                addResult('=== 📊 设备数据库统计 ===', 'enhancement');
+                addResult('===  设备数据库统计 ===', 'enhancement');
 
                 // 初始化数据库
                 if (!deviceDatabase) {
@@ -2164,44 +2164,44 @@
                 }
 
                 // 展示支持的设备类型
-                addResult('🎯 支持的设备类型:', 'enhancement');
+                addResult(' 支持的设备类型:', 'enhancement');
                 addResult('   Apple 系列:', 'enhancement');
-                addResult('     • MacBook Air M1', 'enhancement');
-                addResult('     • MacBook Pro M1 Pro/Max', 'enhancement');
-                addResult('     • MacBook Pro M2', 'enhancement');
+                addResult('     - MacBook Air M1', 'enhancement');
+                addResult('     - MacBook Pro M1 Pro/Max', 'enhancement');
+                addResult('     - MacBook Pro M2', 'enhancement');
 
                 addResult('   Intel 系列:', 'enhancement');
-                addResult('     • Intel高端桌面 + 集成显卡', 'enhancement');
-                addResult('     • Intel游戏本 + NVIDIA独显', 'enhancement');
+                addResult('     - Intel高端桌面 + 集成显卡', 'enhancement');
+                addResult('     - Intel游戏本 + NVIDIA独显', 'enhancement');
 
                 addResult('   AMD 系列:', 'enhancement');
-                addResult('     • Ryzen桌面 + Radeon显卡', 'enhancement');
+                addResult('     - Ryzen桌面 + Radeon显卡', 'enhancement');
 
                 addResult('   移动设备:', 'enhancement');
-                addResult('     • 高端Android设备', 'enhancement');
+                addResult('     - 高端Android设备', 'enhancement');
 
                 addResult('🔬 识别特征:', 'cpu-info');
-                addResult('   • CPU内存访问比例分析', 'cpu-info');
-                addResult('   • WebGL渲染器字符串匹配', 'cpu-info');
-                addResult('   • WebGPU适配器信息验证', 'cpu-info');
-                addResult('   • GPU性能基准测试', 'cpu-info');
-                addResult('   • 多维度特征融合算法', 'cpu-info');
+                addResult('   - CPU内存访问比例分析', 'cpu-info');
+                addResult('   - WebGL渲染器字符串匹配', 'cpu-info');
+                addResult('   - WebGPU适配器信息验证', 'cpu-info');
+                addResult('   - GPU性能基准测试', 'cpu-info');
+                addResult('   - 多维度特征融合算法', 'cpu-info');
 
-                addResult('💡 数据库优势:', 'model-guess');
-                addResult('   • 基于真实设备数据训练', 'model-guess');
-                addResult('   • 持续学习新设备特征', 'model-guess');
-                addResult('   • 多重验证提高准确性', 'model-guess');
-                addResult('   • 支持相似设备推荐', 'model-guess');
+                addResult(' 数据库优势:', 'model-guess');
+                addResult('   - 基于真实设备数据训练', 'model-guess');
+                addResult('   - 持续学习新设备特征', 'model-guess');
+                addResult('   - 多重验证提高准确性', 'model-guess');
+                addResult('   - 支持相似设备推荐', 'model-guess');
 
             } catch (error) {
-                addResult(`❌ 数据库统计失败: ${error.message}`, 'limitation');
+                addResult(` 数据库统计失败: ${error.message}`, 'limitation');
             }
         }
 
         // ===== 简化的验证和诊断功能 =====
 
         function debugWASMModule(Module) {
-            addResult('🔍 WASM模块状态检查:', 'enhancement');
+            addResult(' WASM模块状态检查:', 'enhancement');
 
             // 检查模块基础状态
             const moduleKeys = Object.keys(Module || {});
@@ -2213,10 +2213,10 @@
 
             if (wasmFunctions.length > 0) {
                 wasmFunctions.slice(0, 5).forEach(funcName => {
-                    addResult(`   • ${funcName}`, 'cpu-info');
+                    addResult(`   - ${funcName}`, 'cpu-info');
                 });
                 if (wasmFunctions.length > 5) {
-                    addResult(`   • ... 还有${wasmFunctions.length - 5}个函数`, 'cpu-info');
+                    addResult(`   - ... 还有${wasmFunctions.length - 5}个函数`, 'cpu-info');
                 }
             }
 
@@ -2248,7 +2248,7 @@
 
             addResult('💾 核心内存API状态:', 'cpu-info');
             for (const [api, available] of Object.entries(coreMemoryAPIs)) {
-                const status = available ? '✅' : '❌';
+                const status = available ? '' : '';
                 addResult(`   ${status} ${api}`, available ? 'cpu-info' : 'limitation');
             }
 
@@ -2258,19 +2258,19 @@
             // 尝试手动检查内存
             if (Module.memory && Module.memory.buffer) {
                 const bufferSize = Module.memory.buffer.byteLength;
-                addResult(`📊 WASM内存缓冲区: ${bufferSize} bytes`, 'cpu-info');
+                addResult(` WASM内存缓冲区: ${bufferSize} bytes`, 'cpu-info');
 
                 // 尝试手动创建HEAP8视图
                 try {
                     const heap8 = new Uint8Array(Module.memory.buffer);
-                    addResult(`📊 手动HEAP8视图: ${heap8.length} bytes`, 'cpu-info');
+                    addResult(` 手动HEAP8视图: ${heap8.length} bytes`, 'cpu-info');
                 } catch (e) {
-                    addResult(`❌ 无法创建HEAP8视图: ${e.message}`, 'limitation');
+                    addResult(` 无法创建HEAP8视图: ${e.message}`, 'limitation');
                 }
             } else if (Module.HEAP8) {
-                addResult(`📊 HEAP8大小: ${Module.HEAP8.length} bytes`, 'cpu-info');
+                addResult(` HEAP8大小: ${Module.HEAP8.length} bytes`, 'cpu-info');
             } else {
-                addResult('⚠️ 内存缓冲区不可用 - 这可能影响某些功能', 'model-guess');
+                addResult(' 内存缓冲区不可用 - 这可能影响某些功能', 'model-guess');
             }
 
             // 检查其他重要属性
@@ -2305,12 +2305,12 @@
 
                         if (isFinite(seq) && isFinite(rand) && !isNaN(seq) && !isNaN(rand) && seq !== 0 && rand !== 0) {
                             const ratio = Math.abs(rand / seq);  // 使用绝对值计算比例
-                            addResult(`✅ ${test.name}: 比例=${ratio.toFixed(2)}`, 'cpu-info');
+                            addResult(` ${test.name}: 比例=${ratio.toFixed(2)}`, 'cpu-info');
                         } else {
-                            addResult(`❌ ${test.name}: 结果异常 (seq=${seq}, rand=${rand})`, 'limitation');
+                            addResult(` ${test.name}: 结果异常 (seq=${seq}, rand=${rand})`, 'limitation');
                         }
                     } catch (error) {
-                        addResult(`❌ ${test.name}: 执行失败 - ${error.message}`, 'limitation');
+                        addResult(` ${test.name}: 执行失败 - ${error.message}`, 'limitation');
                     }
                 }
 
@@ -2325,7 +2325,7 @@
                             results.push(Math.abs(rand / seq));  // 使用绝对值
                         }
                     } catch (error) {
-                        addResult(`⚠️ 一致性测试第${i+1}次失败: ${error.message}`, 'limitation');
+                        addResult(` 一致性测试第${i+1}次失败: ${error.message}`, 'limitation');
                     }
                 }
 
@@ -2333,9 +2333,9 @@
                     const mean = results.reduce((a, b) => a + b) / results.length;
                     const variance = results.reduce((sum, r) => sum + Math.pow(r - mean, 2), 0) / results.length;
                     const cv = Math.sqrt(variance) / mean;
-                    addResult(`📊 变异系数: ${(cv*100).toFixed(1)}% (${results.length}次有效测试)`, cv < 0.3 ? 'cpu-info' : 'model-guess');
+                    addResult(` 变异系数: ${(cv*100).toFixed(1)}% (${results.length}次有效测试)`, cv < 0.3 ? 'cpu-info' : 'model-guess');
                 } else {
-                    addResult(`❌ 一致性测试全部失败`, 'limitation');
+                    addResult(` 一致性测试全部失败`, 'limitation');
                 }
 
                 // 计算函数验证
@@ -2350,23 +2350,23 @@
                     try {
                         const result = test.func();
                         if (isFinite(result) && !isNaN(result) && result !== 0) {
-                            addResult(`✅ ${test.name}: 正常`, 'cpu-info');
+                            addResult(` ${test.name}: 正常`, 'cpu-info');
                         } else {
-                            addResult(`⚠️ ${test.name}: 异常值`, 'model-guess');
+                            addResult(` ${test.name}: 异常值`, 'model-guess');
                         }
                     } catch (error) {
-                        addResult(`❌ ${test.name}: 失败`, 'limitation');
+                        addResult(` ${test.name}: 失败`, 'limitation');
                     }
                 }
 
             } catch (error) {
-                addResult(`❌ 验证测试失败: ${error.message}`, 'limitation');
+                addResult(` 验证测试失败: ${error.message}`, 'limitation');
             }
         }
 
         async function runDiagnostics() {
             try {
-                addResult('=== 🔍 系统诊断 ===', 'enhancement');
+                addResult('===  系统诊断 ===', 'enhancement');
                 const Module = await initWASM();
 
                 // 内存分配测试
@@ -2374,7 +2374,7 @@
                 try {
                     // 检查WASM模块状态 - 只要功能可用就继续
                     if (!Module.runtimeInitialized && !Module.calledRun) {
-                        addResult('⚠️ WASM运行时未完全初始化，等待中...', 'model-guess');
+                        addResult(' WASM运行时未完全初始化，等待中...', 'model-guess');
                         // 尝试等待一下
                         await new Promise(resolve => setTimeout(resolve, 100));
                     } else if (!Module.runtimeInitialized && Module.calledRun) {
@@ -2390,14 +2390,14 @@
                         try {
                             ptr = Module._malloc(1024);
                             if (ptr && ptr > 0) {
-                                addResult(`✅ 内存分配正常 (_malloc): ptr=${ptr}`, 'cpu-info');
+                                addResult(` 内存分配正常 (_malloc): ptr=${ptr}`, 'cpu-info');
                                 if (typeof Module._free === 'function') {
                                     Module._free(ptr);
                                 }
                                 allocSuccess = true;
                             }
                         } catch (e) {
-                            addResult(`⚠️ _malloc测试失败: ${e.message}`, 'limitation');
+                            addResult(` _malloc测试失败: ${e.message}`, 'limitation');
                         }
                     }
 
@@ -2406,55 +2406,55 @@
                         try {
                             ptr = Module.malloc(1024);
                             if (ptr && ptr > 0) {
-                                addResult(`✅ 内存分配正常 (malloc): ptr=${ptr}`, 'cpu-info');
+                                addResult(` 内存分配正常 (malloc): ptr=${ptr}`, 'cpu-info');
                                 if (typeof Module.free === 'function') {
                                     Module.free(ptr);
                                 }
                                 allocSuccess = true;
                             }
                         } catch (e) {
-                            addResult(`⚠️ malloc测试失败: ${e.message}`, 'limitation');
+                            addResult(` malloc测试失败: ${e.message}`, 'limitation');
                         }
                     }
 
                     if (!allocSuccess) {
-                        addResult('⚠️ 动态内存分配不可用，检查HEAP访问...', 'model-guess');
+                        addResult(' 动态内存分配不可用，检查HEAP访问...', 'model-guess');
                         // 检查HEAP是否可访问
                         if (Module.HEAP8 && Module.HEAP8.length > 0) {
-                            addResult(`✅ WASM内存堆可访问: ${Module.HEAP8.length} bytes`, 'cpu-info');
+                            addResult(` WASM内存堆可访问: ${Module.HEAP8.length} bytes`, 'cpu-info');
                             // 测试HEAP写入
                             try {
                                 const testIndex = Math.min(1000, Module.HEAP8.length - 1);
                                 const originalValue = Module.HEAP8[testIndex];
                                 Module.HEAP8[testIndex] = 42;
                                 if (Module.HEAP8[testIndex] === 42) {
-                                    addResult(`✅ HEAP写入测试成功`, 'cpu-info');
+                                    addResult(` HEAP写入测试成功`, 'cpu-info');
                                     Module.HEAP8[testIndex] = originalValue; // 恢复原值
                                 } else {
-                                    addResult(`❌ HEAP写入测试失败`, 'limitation');
+                                    addResult(` HEAP写入测试失败`, 'limitation');
                                 }
                             } catch (e) {
-                                addResult(`❌ HEAP访问测试失败: ${e.message}`, 'limitation');
+                                addResult(` HEAP访问测试失败: ${e.message}`, 'limitation');
                             }
                         } else {
-                            addResult('❌ WASM内存堆不可访问', 'limitation');
+                            addResult(' WASM内存堆不可访问', 'limitation');
                         }
                     }
 
                 } catch (error) {
-                    addResult(`❌ 内存系统检查失败: ${error.message}`, 'limitation');
+                    addResult(` 内存系统检查失败: ${error.message}`, 'limitation');
                 }
 
                 // 函数可用性检查
                 addResult('🔧 函数可用性检查:', 'cpu-info');
                 const functions = ['_sequential_access_test', '_random_access_test', '_float_precision_test'];
                 for (const funcName of functions) {
-                    const status = Module[funcName] ? '✅' : '❌';
+                    const status = Module[funcName] ? '' : '';
                     addResult(`  ${status} ${funcName.replace('_', '')}`, Module[funcName] ? 'cpu-info' : 'limitation');
                 }
 
                 // 缓存边界诊断
-                addResult('🔍 缓存边界诊断:', 'cpu-info');
+                addResult(' 缓存边界诊断:', 'cpu-info');
                 const cacheSizes = [8, 16, 32, 64, 128, 256];
                 const cacheResults = [];
 
@@ -2489,7 +2489,7 @@
                     const curr = cacheResults[i];
                     const jump = curr.ratio / prev.ratio;
                     if (jump > 1.5) {
-                        addResult(`📊 缓存边界: ${prev.size}KB → ${curr.size}KB`, 'model-guess');
+                        addResult(` 缓存边界: ${prev.size}KB → ${curr.size}KB`, 'model-guess');
                     }
                 }
 
@@ -2503,7 +2503,7 @@
                 };
 
                 for (const [feature, supported] of Object.entries(features)) {
-                    const status = supported ? '✅' : (feature === 'Performance API' || feature === 'WASM Memory' ? '❌' : 'ℹ️');
+                    const status = supported ? '' : (feature === 'Performance API' || feature === 'WASM Memory' ? '' : 'ℹ️');
                     const style = supported ? 'cpu-info' : (feature === 'Performance API' || feature === 'WASM Memory' ? 'limitation' : 'model-guess');
 
                     if (!supported && (feature === 'BigInt' || feature === 'SharedArrayBuffer')) {
@@ -2514,7 +2514,7 @@
                 }
 
             } catch (error) {
-                addResult(`❌ 系统诊断失败: ${error.message}`, 'limitation');
+                addResult(` 系统诊断失败: ${error.message}`, 'limitation');
             }
         }
 
