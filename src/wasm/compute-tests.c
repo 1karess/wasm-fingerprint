@@ -2,7 +2,7 @@
 #include <math.h>
 #include <stdint.h>
 
-// 修复版浮点运算精度测试
+// Fixed floating-point precision test
 EMSCRIPTEN_KEEPALIVE
 double float_precision_test(int iterations) {
     double result = 1.0;
@@ -20,7 +20,7 @@ double float_precision_test(int iterations) {
     return result;
 }
 
-// 修复版超越函数实现差异测试
+// Fixed transcendental function implementation difference test
 EMSCRIPTEN_KEEPALIVE
 double transcendental_test(double input, int iterations) {
     double result = fabs(input);  // 确保正数
@@ -39,34 +39,34 @@ double transcendental_test(double input, int iterations) {
     return result;
 }
 
-// 修复版整数运算优化模式测试
+// Fixed integer operation optimization pattern test
 EMSCRIPTEN_KEEPALIVE
 long integer_optimization_test(int iterations) {
     long result = 12345;  // 使用非1的初始值
 
     for (int i = 1; i <= iterations; i++) {
-        // 简化运算避免复杂的除法
+        // Simplified operations to avoid complex division
         result = (result * 3 + i) / 2;
 
-        // 测试位运算优化
+        // Test bitwise operation optimization
         result ^= (result << 1) ^ (result >> 1);
 
-        // 测试乘法优化
+        // Test multiplication optimization
         result += (i & 1) ? i : i/2;
 
-        // 防止溢出
+        // Prevent overflow
         if (result > 1000000L || result < -1000000L) {
-            result = (result % 1000000L) + 1000;  // 确保不为0
+            result = (result % 1000000L) + 1000;  // Ensure not zero
         }
 
-        // 确保结果有意义
+        // Ensure result is meaningful
         if (result == 0) result = i + 1000;
     }
 
     return result;
 }
 
-// 修复版分支预测测试
+// Fixed branch prediction test
 EMSCRIPTEN_KEEPALIVE
 long branch_prediction_test(int iterations) {
     long result = 0;
@@ -104,7 +104,7 @@ long branch_prediction_test(int iterations) {
     return result;
 }
 
-// 修复版SIMD风格的向量运算测试
+// Fixed SIMD-style vector computation test
 EMSCRIPTEN_KEEPALIVE
 double vector_computation_test(int iterations) {
     // 模拟SIMD运算
@@ -158,7 +158,7 @@ double vector_computation_test(int iterations) {
     return isfinite(final_result) ? final_result : 1.0;
 }
 
-// 修复版数值稳定性测试
+// Fixed numerical stability test
 EMSCRIPTEN_KEEPALIVE
 double numerical_stability_test(double base, int iterations) {
     double result = fabs(base);
@@ -194,7 +194,7 @@ double numerical_stability_test(double base, int iterations) {
     return result;
 }
 
-// 修复版内存密集型vs计算密集型比较
+// Fixed memory-intensive vs compute-intensive comparison
 EMSCRIPTEN_KEEPALIVE
 double compute_memory_ratio_test(int size_kb, int compute_intensity) {
     int size = size_kb * 1024 / sizeof(double);
@@ -227,7 +227,7 @@ double compute_memory_ratio_test(int size_kb, int compute_intensity) {
     return isfinite(result) ? result : 0.0;
 }
 
-// 修复版缓存友好vs缓存不友好访问模式
+// Fixed cache-friendly vs cache-unfriendly access pattern
 EMSCRIPTEN_KEEPALIVE
 double cache_behavior_test(int size_kb, int access_pattern) {
     int size = size_kb * 1024 / sizeof(int);

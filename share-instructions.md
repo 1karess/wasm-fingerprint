@@ -1,42 +1,42 @@
-# 🚀 分享给朋友测试的最简单方法
+# Simplest Ways to Share for Testing with Friends
 
-## 方法1：GitHub Pages（推荐）
-1. 将项目上传到GitHub
-2. 启用GitHub Pages
-3. 朋友直接访问网址即可
+## Method 1: GitHub Pages (Recommended)
+1. Upload project to GitHub
+2. Enable GitHub Pages
+3. Friends can access directly via URL
 
-## 方法2：直接分享文件
-1. 压缩整个项目文件夹
-2. 朋友解压后运行：`python3 -m http.server 9000`
-3. 访问 `localhost:9000/enhanced-detection.html`
+## Method 2: Direct File Sharing
+1. Compress the entire project folder
+2. Friends unzip and run: `python3 -m http.server 9000`
+3. Visit `localhost:9000/enhanced-detection.html`
 
-## 方法3：在线服务器
-使用netlify.com或vercel.com等免费服务，拖拽上传即可
+## Method 3: Online Hosting
+Use free services like netlify.com or vercel.com, just drag and upload
 
 ---
 
-# 📊 WASM精确度分析
+# WASM Accuracy Analysis
 
-## 当前达到的精确度
-✅ **架构级别识别**（Apple Silicon vs Intel vs AMD）
-✅ **性能等级分类**（移动端 vs 桌面级）
-✅ **缓存层次检测**（L1/L2边界识别）
-✅ **微架构特征**（7维度综合评分）
+## Current Achieved Accuracy
+✅ **Architecture-level identification** (Apple Silicon vs Intel vs AMD)
+✅ **Performance tier classification** (Mobile vs Desktop)
+✅ **Cache hierarchy detection** (L1/L2 boundary identification)
+✅ **Microarchitecture features** (7-dimensional comprehensive scoring)
 
-## WASM理论极限
-⚠️ **浏览器限制**：
-- 计时精度被限制到~0.1ms（安全考虑）
-- 无法访问CPU特定指令集
-- 内存管理高度抽象化
+## WASM Theoretical Limits
+⚠️ **Browser Restrictions**:
+- Timing precision limited to ~0.1ms (security considerations)
+- Cannot access CPU-specific instruction sets
+- Highly abstracted memory management
 
-⚠️ **沙盒限制**：
-- 无法检测真实物理核心数
-- 无法获取CPU温度/频率
-- 无法访问系统调用
+⚠️ **Sandbox Limitations**:
+- Cannot detect true physical core count
+- Cannot obtain CPU temperature/frequency
+- Cannot access system calls
 
-## 📈 理论改进空间
-1. **增加测试维度**：TLB行为、指令延迟
-2. **机器学习模型**：基于更多真实数据训练
-3. **时序模式分析**：多次测试的一致性
+## Theoretical Improvement Space
+1. **Add Test Dimensions**: TLB behavior, instruction latency
+2. **Machine Learning Models**: Train on more real-world data
+3. **Timing Pattern Analysis**: Consistency across multiple tests
 
-**结论**：当前已接近WASM环境下的理论极限，主要受浏览器安全策略约束。
+**Conclusion**: Currently approaching the theoretical limit within WASM environment, primarily constrained by browser security policies.

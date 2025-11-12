@@ -1,14 +1,14 @@
-# 文档索引
+# Documentation Index
 
-核心说明已整合进仓库根目录的 `README.md`。本文件用于指引 `docs/` 目录下的补充资源。
+Core documentation has been integrated into `README.md` in the repository root. This file serves to guide supplementary resources under the `docs/` directory.
 
-## 快速定位
-- `../README.md`：完整的项目概述、检测原理与最新检测日志
-- `device-database/`：校准样本、数据库结构与回归测试输出
+## Quick Navigation
+- `../README.md`: Complete project overview, detection principles, and latest detection logs
+- `device-database/`: Calibration samples, database structure, and regression test output
 
-## 建议阅读顺序
-1. 先阅读根目录 `README.md` 了解检测流程与技术细节
-2. 根据需要查看 `docs/device-database/` 下的样本与校准产物
-3. 结合 `tools/` 中的脚本完成校准与验证
+## Recommended Reading Order
+1. First read the root `README.md` to understand detection flow and technical details
+2. View samples and calibration outputs under `docs/device-database/` as needed
+3. Use scripts in `tools/` to complete calibration and validation
 
-如需新增文档，可继续放置在本目录并在此处补充索引。
+To add new documentation, place it in this directory and update the index here.

@@ -1,357 +1,357 @@
-# 🔍 WASM三重检测 - 设备指纹识别工具
+# WASM Triple Detection - Device Fingerprinting Tool
 
-基于WebAssembly的先进设备指纹识别系统，融合WASM + WebGL + WebGPU三重检测技术，能够精确识别CPU架构、GPU型号和设备特征。
+Advanced device fingerprinting system based on WebAssembly, integrating WASM + WebGL + WebGPU triple detection technology for accurate identification of CPU architecture, GPU models, and device characteristics.
 
-## 🎯 项目概述
+## Project Overview
 
-利用WASM的确定性执行环境、WebGL的渲染特征和WebGPU的计算能力，实现精确的设备型号识别。
+Leveraging WASM's deterministic execution environment, WebGL's rendering characteristics, and WebGPU's computing capabilities to achieve precise device model identification.
 
-### 📌 项目目标
-- 深入探测 L1/L2/L3 缓存特征，捕捉微架构差异
-- 分析分支预测器、乱序执行等 CPU 内核机制
-- 量化内存访问模式，识别统一/离散内存架构
-- 比较浮点与整数性能，提取处理器优化倾向
+### Project Goals
+- Deep probing of L1/L2/L3 cache characteristics to capture microarchitecture differences
+- Analyzing branch predictors, out-of-order execution, and other CPU core mechanisms
+- Quantifying memory access patterns to identify unified/discrete memory architectures
+- Comparing floating-point and integer performance to extract processor optimization tendencies
 
-### 🚀 核心功能
-- **🔧 WASM CPU深度分析** - CPU微架构特征检测
-- **🎨 WebGL GPU检测** - GPU基础信息和渲染特征
-- **⚡ WebGPU高级检测** - GPU性能分析和时序攻击
-- **🚀 三重检测** - 融合所有技术的终极精度识别
-- **🧬 完整特征分析** - 详细的缓存和性能分析
+### Core Features
+- **WASM CPU Deep Analysis** - CPU microarchitecture feature detection
+- **WebGL GPU Detection** - GPU basic information and rendering characteristics
+- **WebGPU Advanced Detection** - GPU performance analysis and timing attacks
+- **Triple Detection** - Ultimate precision identification integrating all technologies
+- **Complete Feature Analysis** - Detailed cache and performance analysis
 
-### 🍎 特别优化
-- **Apple Silicon专项适配** - 针对M1/M2/M3/M4芯片优化
-- **统一内存架构支持** - 正确识别Apple独特内存模式
-- **强预取器检测** - 识别高端CPU预取器特征
+### Special Optimizations
+- **Apple Silicon Specific Adaptation** - Optimized for M1/M2/M3/M4 chips
+- **Unified Memory Architecture Support** - Correctly identifies Apple's unique memory patterns
+- **Strong Prefetcher Detection** - Identifies high-end CPU prefetcher characteristics
 
-## 🚀 快速开始
+## Quick Start
 
-### 🌐 在线测试（最简单）
+### Online Testing (Simplest)
 
-**直接访问 GitHub Pages：**
-- 🔗 **主页面**: https://1karess.github.io/wasm-fingerprint/
-- 🔗 **检测页面**: https://1karess.github.io/wasm-fingerprint/enhanced-detection.html
+**Direct Access via GitHub Pages:**
+- **Main Page**: https://1karess.github.io/wasm-fingerprint/
+- **Detection Page**: https://1karess.github.io/wasm-fingerprint/enhanced-detection.html
 
-无需安装任何环境，直接在浏览器中打开即可测试！
+No installation required, just open in your browser to test!
 
-### 📥 本地开发
+### Local Development
 
-#### 方法1: Git克隆
+#### Method 1: Git Clone
 ```bash
 git clone https://github.com/1karess/wasm-fingerprint.git
 cd wasm-fingerprint
 ```
 
-#### 方法2: 直接下载
-访问 [GitHub仓库](https://github.com/1karess/wasm-fingerprint) → 点击"Code" → "Download ZIP" → 解压
+#### Method 2: Direct Download
+Visit [GitHub Repository](https://github.com/1karess/wasm-fingerprint) → Click "Code" → "Download ZIP" → Extract
 
-### 🌐 本地运行测试
+### Local Test Execution
 
-#### 网页版（推荐）
+#### Web Version (Recommended)
 ```bash
-# 启动服务器（三选一）
+# Start server (choose one)
 python3 -m http.server 8080    # Python 3
 python -m http.server 8080     # Python 2.7+
 npx serve .                    # Node.js
 
-# 然后访问：http://localhost:8080/enhanced-detection.html
+# Then visit: http://localhost:8080/enhanced-detection.html
 ```
 
-#### 命令行版
+#### Command Line Version
 ```bash
 node test-wasm.js
 ```
 
-### 📐 校准与验证（可选）
-收集浏览器端样本（增强页面 → “导出校准样本JSON”），将生成的JSON放入 `docs/device-database/samples/`，然后：
+### Calibration and Validation (Optional)
+Collect browser samples (Enhanced Page → "Export Calibration Sample JSON"), place the generated JSON in `docs/device-database/samples/`, then:
 
 ```bash
-node tools/calibrate.js ingest     # 计算阈值区间，生成 calibration.json
-node tools/calibrate.js validate   # 对 expected.json 做回归测试
+node tools/calibrate.js ingest     # Calculate threshold ranges, generate calibration.json
+node tools/calibrate.js validate   # Regression test against expected.json
 ```
 
-在 `docs/device-database/` 中查看 `calibration.json` 和 `regression-report.json`。
+View `calibration.json` and `regression-report.json` in `docs/device-database/`.
 
-### 🎯 测试步骤
-1. **🔧 WASM CPU深度分析** - 开始基础检测
-2. **🚀 三重检测** - 获得最高精度结果
-3. **🧬 完整特征分析** - 查看详细技术数据
+### Testing Steps
+1. **WASM CPU Deep Analysis** - Start basic detection
+2. **Triple Detection** - Get highest accuracy results
+3. **Complete Feature Analysis** - View detailed technical data
 
-## 📁 项目结构
+## Project Structure
 
 ```
 /
-├── enhanced-detection.html    # 🎯 主要检测界面
+├── enhanced-detection.html    # Main detection interface
 ├── src/
-│   ├── wasm/                  # WASM C源代码
-│   │   ├── memory-tests.c     # 内存访问测试
-│   │   └── compute-tests.c    # 计算性能测试
-│   └── common.js              # 共享JavaScript库
-├── build/                     # 编译输出
+│   ├── wasm/                  # WASM C source code
+│   │   ├── memory-tests.c     # Memory access tests
+│   │   └── compute-tests.c    # Compute performance tests
+│   └── common.js              # Shared JavaScript library
+├── build/                     # Build output
 │   ├── wasm-fingerprint.js
 │   └── wasm-fingerprint.wasm
-├── examples/                  # 示例和工具
-│   ├── basic-detection.html   # 基础检测示例
-│   ├── validation-tests.html  # 代码验证工具
-│   └── diagnostic-tool.html   # 性能诊断工具
-├── docs/                      # 详细文档
-└── tools/                     # 构建工具
+├── examples/                  # Examples and tools
+│   ├── basic-detection.html   # Basic detection example
+│   ├── validation-tests.html  # Code validation tool
+│   └── diagnostic-tool.html   # Performance diagnostic tool
+├── docs/                      # Detailed documentation
+└── tools/                     # Build tools
 ```
 
-## 🔧 构建说明
+## Build Instructions
 
-需要Emscripten SDK：
+Requires Emscripten SDK:
 
 ```bash
-# 激活环境
+# Activate environment
 source emsdk/emsdk_env.sh
 
-# 编译WASM模块
+# Compile WASM module
 make
 
-# 或者清理重建
+# Or clean rebuild
 make clean && make
 ```
 
-## 📊 检测原理
+## Detection Principles
 
-### 内存访问测试
+### Memory Access Testing
 ```c
-// 顺序访问 - 缓存友好
+// Sequential access - cache friendly
 for (int i = 0; i < size; i += 64) {
     volatile char temp = buffer[i];
 }
 
-// 随机访问 - 触发缓存未命中
+// Random access - trigger cache misses
 int index = random() % (size - 64);
 volatile char temp = buffer[index];
 ```
 
-**时间比例分析**：
+**Time Ratio Analysis**:
 
-| CPU类型 | 内存比例 | 特征描述 |
+| CPU Type | Memory Ratio | Feature Description |
 |---------|----------|----------|
-| Apple Silicon | 1.0-1.5 | 统一内存 + 超强预取器 |
-| Intel高端 | 1.5-2.5 | 深缓存层次 + 高带宽 |
-| AMD Ryzen | 1.5-3.0 | 平衡设计 + 稳定访问 |
-| ARM移动 | 2.0-4.0 | 功耗优先 + 高延迟内存 |
+| Apple Silicon | 1.0-1.5 | Unified memory + super strong prefetcher |
+| Intel High-end | 1.5-2.5 | Deep cache hierarchy + high bandwidth |
+| AMD Ryzen | 1.5-3.0 | Balanced design + stable access |
+| ARM Mobile | 2.0-4.0 | Power priority + high latency memory |
 
-### 计算性能测试
-- **浮点精度**：不同FPU的舍入误差模式
-- **整数优化**：编译器和CPU优化差异
-- **向量计算**：SIMD指令集支持检测
-- **分支预测**：条件分支执行效率
+### Compute Performance Testing
+- **Floating-point Precision**: Rounding error patterns in different FPUs
+- **Integer Optimization**: Compiler and CPU optimization differences
+- **Vector Computation**: SIMD instruction set support detection
+- **Branch Prediction**: Conditional branch execution efficiency
 
-## 📊 检测精度
+## Detection Accuracy
 
-### ✅ 已实现功能
-- **CPU架构识别**：85-95% 准确率
-- **GPU型号识别**：80-90% 准确率
-- **设备型号推测**：70-90% 准确率
-- **Apple Silicon优化**：95%+ 准确率
-- **缓存层次分析**：L1/L2/L3边界检测
-- **预取器特征识别**：强/中/弱分类
+### Implemented Features
+- **CPU Architecture Identification**: 85-95% accuracy
+- **GPU Model Identification**: 80-90% accuracy
+- **Device Model Inference**: 70-90% accuracy
+- **Apple Silicon Optimization**: 95%+ accuracy
+- **Cache Hierarchy Analysis**: L1/L2/L3 boundary detection
+- **Prefetcher Feature Recognition**: Strong/Medium/Weak classification
 
-### 🎯 支持设备
-- **Apple系列**：MacBook Air/Pro M1/M2/M3/M4
-- **Intel系列**：Core i5/i7/i9 + 集成/独立显卡
-- **AMD系列**：Ryzen + Radeon显卡
-- **移动设备**：高端Android设备
+### Supported Devices
+- **Apple Series**: MacBook Air/Pro M1/M2/M3/M4
+- **Intel Series**: Core i5/i7/i9 + integrated/discrete graphics
+- **AMD Series**: Ryzen + Radeon graphics
+- **Mobile Devices**: High-end Android devices
 
-### 🔬 测试结果示例
-以下为最新一次在 Apple Silicon 环境中的完整检测日志，展示了 WASM + WebGL + WebGPU 三重检测的详细输出：
+### Test Results Example
+The following is the complete detection log from the latest test on an Apple Silicon environment, demonstrating the detailed output of WASM + WebGL + WebGPU triple detection:
 
 ```
-[11:56:17] === 🎯 CPU型号检测启动 ===
-[11:56:17] 🧠 内存访问模式分析:
-[11:56:17] 测试 1(32KB/200次): 顺序=3.30ms, 随机=2.90ms, 比例=0.879
-[11:56:17] 测试 2(64KB/150次): 顺序=3.80ms, 随机=3.30ms, 比例=0.868
-[11:56:17] 测试 3(32KB/200次): 顺序=2.20ms, 随机=1.90ms, 比例=0.864
-[11:56:17] 平均比例: 0.870
-[11:56:17] 📊 缓存架构分析:
-[11:56:17] L1缓存大小: 64KB
-[11:56:17] 缓存行大小: 128字节
-[11:56:17] 🎯 检测结果:
-[11:56:17] CPU型号: Apple Silicon (M1/M2/M3/M4)
-[11:56:17] 置信度: 90%
-[11:56:17] 📋 推断依据:
-[11:56:17] • 内存访问比例 0.870 显示统一内存架构特征
-[11:56:20] === 📊 WASM CPU微架构深度分析 ===
-[11:56:20] 🍎 检测到Apple Silicon内存模式：顺序访问略慢于随机访问
-[11:56:20] 🔧 基础性能测试结果:
-[11:56:20] 内存访问时间比例: 1.200 (Apple Silicon模式 - 顺序6.00ms / 随机5.00ms)
-[11:56:20] 浮点计算: 2107.286993 (0.20ms)
-[11:56:20] 整数优化: 568132 (0.20ms)
-[11:56:20] 向量计算: 51.457290 (0.20ms)
-[11:56:20] SIMD支持: ❌ 未检测到
-[11:56:20] 🧬 WASM缓存层次分析:
-[11:56:20] 正在分析缓存特征...
-[11:56:20] 32KB(L1边界): 比例=0.905
-[11:56:20] 64KB: 比例=1.000
-[11:56:20] 256KB(L2边界): 比例=1.658 ⚠️ 缓存边界
-[11:56:20] 512KB: 比例=1.490
-[11:56:20] 2MB(L3边界): 比例=1.504
-[11:56:20] 4MB: 比例=1.613 ⚠️ 缓存边界
-[11:56:20] 🎯 WASM微架构特征分析:
-[11:56:20] 预取器行为分析:
-[11:56:20] 1缓存行(64B): 0.1ms
-[11:56:20] 2缓存行(128B): 0.2ms
-[11:56:20] 8缓存行(512B): 0.2ms
-[11:56:20] 1内存页(4KB): 0.2ms
-[11:56:20] 🔮 预取器效率: 0.5 (超强预取器)
-[11:56:20] 🎯 WASM专业分析结果:
-[11:56:20] CPU架构: Apple Silicon
-[11:56:20] WASM检测置信度: 90%
-[11:56:20] WASM分析依据:
-[11:56:20] • 低内存访问比例，典型统一内存架构
-[11:56:20] • Apple统一内存缓存模式
-[11:56:20] 💡 WASM独特优势:
-[11:56:20] • 直接访问CPU微架构特征
-[11:56:20] • 绕过操作系统抽象层
-[11:56:20] • 精确的缓存层次分析
-[11:56:20] • 预取器行为检测
-[11:56:20] • 跨平台一致性检测
-[11:56:20] ⚠️ WASM检测限制:
-[11:56:20] • 受浏览器安全策略影响
-[11:56:20] • 无法获取具体型号信息
-[11:56:20] • 精度受执行环境标准化影响
-[11:56:22] === 🎨 WebGL GPU检测 ===
-[11:56:22] 🔍 GPU基础信息:
-[11:56:22] 厂商: WebKit
-[11:56:22] 渲染器: ANGLE (Apple, ANGLE Metal Renderer: Apple M4 Pro, Unspecified Version)
-[11:56:22] 版本: WebGL 1.0 (OpenGL ES 2.0 Chromium)
-[11:56:22] 📊 扩展支持:
-[11:56:22] 总扩展数: 39
-[11:56:22] 重要扩展: 9
-[11:56:22] 🎯 Canvas指纹:
-[11:56:22] 主指纹: 969624ef
-[11:56:22] 指纹变体:
+[11:56:17] === CPU Model Detection Started ===
+[11:56:17] Memory Access Pattern Analysis:
+[11:56:17] Test 1(32KB/200x): Sequential=3.30ms, Random=2.90ms, Ratio=0.879
+[11:56:17] Test 2(64KB/150x): Sequential=3.80ms, Random=3.30ms, Ratio=0.868
+[11:56:17] Test 3(32KB/200x): Sequential=2.20ms, Random=1.90ms, Ratio=0.864
+[11:56:17] Average Ratio: 0.870
+[11:56:17] Cache Architecture Analysis:
+[11:56:17] L1 Cache Size: 64KB
+[11:56:17] Cache Line Size: 128 bytes
+[11:56:17] Detection Result:
+[11:56:17] CPU Model: Apple Silicon (M1/M2/M3/M4)
+[11:56:17] Confidence: 90%
+[11:56:17] Inference Basis:
+[11:56:17] • Memory access ratio 0.870 indicates unified memory architecture characteristics
+[11:56:20] === WASM CPU Microarchitecture Deep Analysis ===
+[11:56:20] Apple Silicon memory pattern detected: Sequential access slightly slower than random access
+[11:56:20] Basic Performance Test Results:
+[11:56:20] Memory Access Time Ratio: 1.200 (Apple Silicon mode - Sequential 6.00ms / Random 5.00ms)
+[11:56:20] Floating-point: 2107.286993 (0.20ms)
+[11:56:20] Integer Optimization: 568132 (0.20ms)
+[11:56:20] Vector Computation: 51.457290 (0.20ms)
+[11:56:20] SIMD Support: ❌ Not detected
+[11:56:20] WASM Cache Hierarchy Analysis:
+[11:56:20] Analyzing cache characteristics...
+[11:56:20] 32KB(L1 boundary): Ratio=0.905
+[11:56:20] 64KB: Ratio=1.000
+[11:56:20] 256KB(L2 boundary): Ratio=1.658 ⚠️ Cache boundary
+[11:56:20] 512KB: Ratio=1.490
+[11:56:20] 2MB(L3 boundary): Ratio=1.504
+[11:56:20] 4MB: Ratio=1.613 ⚠️ Cache boundary
+[11:56:20] WASM Microarchitecture Feature Analysis:
+[11:56:20] Prefetcher Behavior Analysis:
+[11:56:20] 1 cache line(64B): 0.1ms
+[11:56:20] 2 cache lines(128B): 0.2ms
+[11:56:20] 8 cache lines(512B): 0.2ms
+[11:56:20] 1 memory page(4KB): 0.2ms
+[11:56:20] Prefetcher Efficiency: 0.5 (super strong prefetcher)
+[11:56:20] WASM Professional Analysis Result:
+[11:56:20] CPU Architecture: Apple Silicon
+[11:56:20] WASM Detection Confidence: 90%
+[11:56:20] WASM Analysis Basis:
+[11:56:20] • Low memory access ratio, typical unified memory architecture
+[11:56:20] • Apple unified memory cache pattern
+[11:56:20] WASM Unique Advantages:
+[11:56:20] • Direct access to CPU microarchitecture features
+[11:56:20] • Bypasses operating system abstraction layer
+[11:56:20] • Precise cache hierarchy analysis
+[11:56:20] • Prefetcher behavior detection
+[11:56:20] • Cross-platform consistency detection
+[11:56:20] ⚠️ WASM Detection Limitations:
+[11:56:20] • Affected by browser security policies
+[11:56:20] • Cannot obtain specific model information
+[11:56:20] • Accuracy affected by execution environment standardization
+[11:56:22] === WebGL GPU Detection ===
+[11:56:22] GPU Basic Information:
+[11:56:22] Vendor: WebKit
+[11:56:22] Renderer: ANGLE (Apple, ANGLE Metal Renderer: Apple M4 Pro, Unspecified Version)
+[11:56:22] Version: WebGL 1.0 (OpenGL ES 2.0 Chromium)
+[11:56:22] Extension Support:
+[11:56:22] Total Extensions: 39
+[11:56:22] Important Extensions: 9
+[11:56:22] Canvas Fingerprint:
+[11:56:22] Main Fingerprint: 969624ef
+[11:56:22] Fingerprint Variants:
 [11:56:22] • blend: a0978c68
 [11:56:22] • canvas2d: 50797a79
-[11:56:22] ⚡ 渲染性能:
-[11:56:22] 简单渲染: 0.70ms
-[11:56:22] 复杂渲染: 1.20ms
-[11:56:22] 纹理操作: 0.00ms
-[11:56:22] 🎯 WebGL GPU型号推测:
-[11:56:22] 型号: Apple Silicon GPU
-[11:56:22] 置信度: 95%
-[11:56:22] 推测依据:
-[11:56:22] • 渲染器字符串包含Apple特征
-[11:56:22] • 高性能GPU特征
-[11:56:22] • 丰富的扩展支持
-[11:56:25] === ⚡ WebGPU GPU检测 ===
-[11:56:25] 🔍 GPU适配器信息:
-[11:56:25] 厂商: apple
-[11:56:25] 架构: metal-3
-[11:56:25] 设备: 未知
-[11:56:25] 描述: 未知
-[11:56:25] 子组大小: 4-64
-[11:56:25] 💪 GPU能力:
-[11:56:25] 支持特性: 1个
-[11:56:25] 最大纹理尺寸: 8192
-[11:56:25] 最大缓冲区: 268435456字节
-[11:56:25] 最大工作组: 256
-[11:56:25] ⏱️ GPU性能分析:
-[11:56:25] 计时器分辨率: 2.614ms (±0.063)
-[11:56:25] 内存带宽: 353.40 GB/s
-[11:56:25] 简单计算: 1.40ms
-[11:56:25] 数学密集: 0.20ms
-[11:56:25] 内存密集: 2.30ms
-[11:56:25] 缓存效率: 0.22
-[11:56:25] 🎯 WebGPU GPU型号推测:
-[11:56:25] 型号: Apple M4 Pro GPU
-[11:56:25] 置信度: 95%
-[11:56:25] 推测依据:
-[11:56:25] • GPU厂商: apple
-[11:56:25] • 内存带宽: 353.40 GB/s
-[11:56:25] • 高性能GPU特征
-[11:56:25] • 计算复杂度比例: 0.14
-[11:56:25] • 强大的并行计算能力
-[11:56:25] • 缓存效率: 0.22
-[11:56:25] • 优秀的缓存架构
-[11:56:28] === 🚀 三重检测系统启动 ===
-[11:56:28] 正在执行 WASM + WebGL + WebGPU 综合检测...
-[11:56:28] 🔧 第一阶段: WASM CPU微架构检测
-[11:56:35] ✓ CPU特征: Apple Silicon (置信度: 80%)
-[11:56:35] 内存访问比例: 1.166
-[11:56:35] 探测到的L1缓存: 192KB
-[11:56:35] • L1比例=1.00
-[11:56:35] SIMD扩展: 未检测到WASM SIMD
-[11:56:35] Worker并发能力: 24 (中位往返 1.10ms)
-[11:56:35] 🎨 第二阶段: WebGL GPU检测
-[11:56:35] ✓ WebGL GPU: Apple Silicon GPU (置信度: 95%)
-[11:56:35] ⚡ 第三阶段: WebGPU高级检测
-[11:56:36] ✓ WebGPU GPU: Apple M4 Pro GPU (置信度: 95%)
-[11:56:36] 🧠 第四阶段: 综合分析与设备识别
-[11:56:36] 🎯 最终设备识别结果:
-[11:56:36] 设备型号: apple MacBook Pro M4 Pro
-[11:56:36] CPU型号: Apple Silicon
-[11:56:36] GPU型号: Apple Silicon GPU
-[11:56:36] 综合置信度: 83.25%
-[11:56:36] 🔍 识别依据:
-[11:56:36] • 🎯 数据库精确匹配 (83.25% 置信度)
-[11:56:36] • 设备类型: apple MacBook Pro M4 Pro
-[11:56:36] • 总体匹配分数: 68.5/100
-[11:56:36] • CPU特征匹配:
-[11:56:36] • • 架构匹配: Apple Silicon
-[11:56:36] • • 内存比例匹配: 1.166
-[11:56:36] • • 深层比例命中校准区间(apple/deep)
-[11:56:36] • • L1内存比例匹配: 1.000
-[11:56:36] • WebGL特征匹配:
-[11:56:36] • • 厂商匹配: apple
-[11:56:36] • • 渲染器匹配: ANGLE (Apple, ANGLE Metal Renderer: Apple M4 Pro, Unspecified Version)
-[11:56:36] • • 高置信度WebGL检测: 95%
-[11:56:36] • WebGPU特征匹配:
-[11:56:36] • • WebGPU厂商匹配: apple
-[11:56:36] • • 架构匹配: metal-3
-[11:56:36] • • 高置信度WebGPU检测: 95%
-[11:56:36] • 备选方案: apple MacBook Air M1, apple MacBook Pro M1 Pro
-[12:07:24] === 🧬 当前设备特征签名分析 ===
-[12:07:24] 正在提取多维度特征...
-[12:07:24] 🔧 开始缓存驱逐测试...
-[12:07:24] 测试 32KB(L1边界) (500次迭代)...
-[12:07:24] 32KB(L1边界): 比例=0.853, 顺序=3.2ms±0.8, 随机=2.7ms±0.4
-[12:07:24] 测试 64KB (500次迭代)...
-[12:07:24] 64KB: 比例=1.053, 顺序=4.4ms±0.0, 随机=4.6ms±0.1
-[12:07:24] 测试 256KB(L2边界) (300次迭代)...
-[12:07:25] 256KB(L2边界): 比例=1.693, 顺序=11.3ms±0.2, 随机=19.1ms±0.1
-[12:07:25] 测试 512KB (300次迭代)...
-[12:07:25] 512KB: 比例=1.483, 顺序=22.9ms±0.1, 随机=34.0ms±0.3
-[12:07:25] 测试 2MB(L3边界) (200次迭代)...
-[12:07:25] 2MB(L3边界): 比例=1.528, 顺序=59.3ms±0.6, 随机=90.6ms±1.8
-[12:07:25] 测试 4MB (100次迭代)...
-[12:07:26] 4MB: 比例=1.615, 顺序=59.7ms±0.0, 随机=96.3ms±1.3
-[12:07:26] 测试 8MB(主内存) (50次迭代)...
-[12:07:26] 8MB(主内存): 比例=1.959, 顺序=60.6ms±0.4, 随机=118.7ms±0.7
-[12:07:26] ⚡ 计算性能测试...
-[12:07:26] 🏃 步长敏感性测试...
-[12:07:26] 1缓存行(64B): 0.1ms
-[12:07:26] 2缓存行(128B): 测试失效 (时间太短)
-[12:07:26] 4缓存行(256B): 0.2ms
-[12:07:26] 8缓存行(512B): 0.2ms
-[12:07:26] 1内存页(4KB): 0.3ms
-[12:07:26] 📊 标准缓存特征: 64B(0.1ms) vs 4KB(0.3ms)
-[12:07:26] 🔮 预取器效率: 0.33 - 超强预取器
-[12:07:26] 💪 CPU压力特征测试...
-[12:07:26] 📉 压力下性能退化: 0.0% (值越小抗压能力越强)
-[12:07:26] 🔄 缓存关联性测试...
-[12:07:26] 4KB间隔: 测试精度不足 (0.100ms) - Apple Silicon缓存可能过于高效
-[12:07:26] 8KB间隔: 测试精度不足 (0.100ms) - Apple Silicon缓存可能过于高效
-[12:07:26] 16KB间隔: 测试精度不足 (0.100ms) - Apple Silicon缓存可能过于高效
-[12:07:26] 32KB间隔: 测试精度不足 (0.200ms) - Apple Silicon缓存可能过于高效
-[12:07:26] ⚠️ 缓存冲突测试精度不足 (有效测试4个)
-[12:07:26] 🧮 特殊运算指纹...
-[12:07:26] ➗ 除法效率: 1.00 (Intel通常<5, AMD可能>5)
-[12:07:26] 📊 设备特征签名:
-[12:07:26] 🧠 内存访问模式 (寻找缓存边界):
+[11:56:22] Rendering Performance:
+[11:56:22] Simple Rendering: 0.70ms
+[11:56:22] Complex Rendering: 1.20ms
+[11:56:22] Texture Operations: 0.00ms
+[11:56:22] WebGL GPU Model Inference:
+[11:56:22] Model: Apple Silicon GPU
+[11:56:22] Confidence: 95%
+[11:56:22] Inference Basis:
+[11:56:22] • Renderer string contains Apple characteristics
+[11:56:22] • High-performance GPU features
+[11:56:22] • Rich extension support
+[11:56:25] === WebGPU GPU Detection ===
+[11:56:25] GPU Adapter Information:
+[11:56:25] Vendor: apple
+[11:56:25] Architecture: metal-3
+[11:56:25] Device: Unknown
+[11:56:25] Description: Unknown
+[11:56:25] Subgroup Size: 4-64
+[11:56:25] GPU Capabilities:
+[11:56:25] Supported Features: 1
+[11:56:25] Max Texture Size: 8192
+[11:56:25] Max Buffer: 268435456 bytes
+[11:56:25] Max Workgroup: 256
+[11:56:25] GPU Performance Analysis:
+[11:56:25] Timer Resolution: 2.614ms (±0.063)
+[11:56:25] Memory Bandwidth: 353.40 GB/s
+[11:56:25] Simple Computation: 1.40ms
+[11:56:25] Math Intensive: 0.20ms
+[11:56:25] Memory Intensive: 2.30ms
+[11:56:25] Cache Efficiency: 0.22
+[11:56:25] WebGPU GPU Model Inference:
+[11:56:25] Model: Apple M4 Pro GPU
+[11:56:25] Confidence: 95%
+[11:56:25] Inference Basis:
+[11:56:25] • GPU vendor: apple
+[11:56:25] • Memory bandwidth: 353.40 GB/s
+[11:56:25] • High-performance GPU features
+[11:56:25] • Compute complexity ratio: 0.14
+[11:56:25] • Powerful parallel computing capability
+[11:56:25] • Cache efficiency: 0.22
+[11:56:25] • Excellent cache architecture
+[11:56:28] === Triple Detection System Started ===
+[11:56:28] Executing WASM + WebGL + WebGPU comprehensive detection...
+[11:56:28] Phase 1: WASM CPU Microarchitecture Detection
+[11:56:35] ✓ CPU Features: Apple Silicon (Confidence: 80%)
+[11:56:35] Memory Access Ratio: 1.166
+[11:56:35] Detected L1 Cache: 192KB
+[11:56:35] • L1 Ratio=1.00
+[11:56:35] SIMD Extensions: WASM SIMD not detected
+[11:56:35] Worker Concurrency: 24 (median round-trip 1.10ms)
+[11:56:35] Phase 2: WebGL GPU Detection
+[11:56:35] ✓ WebGL GPU: Apple Silicon GPU (Confidence: 95%)
+[11:56:35] Phase 3: WebGPU Advanced Detection
+[11:56:36] ✓ WebGPU GPU: Apple M4 Pro GPU (Confidence: 95%)
+[11:56:36] Phase 4: Comprehensive Analysis and Device Identification
+[11:56:36] Final Device Identification Result:
+[11:56:36] Device Model: apple MacBook Pro M4 Pro
+[11:56:36] CPU Model: Apple Silicon
+[11:56:36] GPU Model: Apple Silicon GPU
+[11:56:36] Overall Confidence: 83.25%
+[11:56:36] Identification Basis:
+[11:56:36] • Database Exact Match (83.25% confidence)
+[11:56:36] • Device Type: apple MacBook Pro M4 Pro
+[11:56:36] • Overall Match Score: 68.5/100
+[11:56:36] • CPU Feature Match:
+[11:56:36] • • Architecture Match: Apple Silicon
+[11:56:36] • • Memory Ratio Match: 1.166
+[11:56:36] • • Deep ratio hits calibration range (apple/deep)
+[11:56:36] • • L1 Memory Ratio Match: 1.000
+[11:56:36] • WebGL Feature Match:
+[11:56:36] • • Vendor Match: apple
+[11:56:36] • • Renderer Match: ANGLE (Apple, ANGLE Metal Renderer: Apple M4 Pro, Unspecified Version)
+[11:56:36] • • High Confidence WebGL Detection: 95%
+[11:56:36] • WebGPU Feature Match:
+[11:56:36] • • WebGPU Vendor Match: apple
+[11:56:36] • • Architecture Match: metal-3
+[11:56:36] • • High Confidence WebGPU Detection: 95%
+[11:56:36] • Alternative Options: apple MacBook Air M1, apple MacBook Pro M1 Pro
+[12:07:24] === Current Device Feature Signature Analysis ===
+[12:07:24] Extracting multidimensional features...
+[12:07:24] Starting cache eviction tests...
+[12:07:24] Testing 32KB(L1 boundary) (500 iterations)...
+[12:07:24] 32KB(L1 boundary): Ratio=0.853, Sequential=3.2ms±0.8, Random=2.7ms±0.4
+[12:07:24] Testing 64KB (500 iterations)...
+[12:07:24] 64KB: Ratio=1.053, Sequential=4.4ms±0.0, Random=4.6ms±0.1
+[12:07:24] Testing 256KB(L2 boundary) (300 iterations)...
+[12:07:25] 256KB(L2 boundary): Ratio=1.693, Sequential=11.3ms±0.2, Random=19.1ms±0.1
+[12:07:25] Testing 512KB (300 iterations)...
+[12:07:25] 512KB: Ratio=1.483, Sequential=22.9ms±0.1, Random=34.0ms±0.3
+[12:07:25] Testing 2MB(L3 boundary) (200 iterations)...
+[12:07:25] 2MB(L3 boundary): Ratio=1.528, Sequential=59.3ms±0.6, Random=90.6ms±1.8
+[12:07:25] Testing 4MB (100 iterations)...
+[12:07:26] 4MB: Ratio=1.615, Sequential=59.7ms±0.0, Random=96.3ms±1.3
+[12:07:26] Testing 8MB(main memory) (50 iterations)...
+[12:07:26] 8MB(main memory): Ratio=1.959, Sequential=60.6ms±0.4, Random=118.7ms±0.7
+[12:07:26] Compute Performance Testing...
+[12:07:26] Stride Sensitivity Testing...
+[12:07:26] 1 cache line(64B): 0.1ms
+[12:07:26] 2 cache lines(128B): Test failed (time too short)
+[12:07:26] 4 cache lines(256B): 0.2ms
+[12:07:26] 8 cache lines(512B): 0.2ms
+[12:07:26] 1 memory page(4KB): 0.3ms
+[12:07:26] Standard Cache Features: 64B(0.1ms) vs 4KB(0.3ms)
+[12:07:26] Prefetcher Efficiency: 0.33 - super strong prefetcher
+[12:07:26] CPU Pressure Feature Testing...
+[12:07:26] Performance degradation under pressure: 0.0% (lower value = stronger pressure resistance)
+[12:07:26] Cache Associativity Testing...
+[12:07:26] 4KB interval: Insufficient test precision (0.100ms) - Apple Silicon cache may be too efficient
+[12:07:26] 8KB interval: Insufficient test precision (0.100ms) - Apple Silicon cache may be too efficient
+[12:07:26] 16KB interval: Insufficient test precision (0.100ms) - Apple Silicon cache may be too efficient
+[12:07:26] 32KB interval: Insufficient test precision (0.200ms) - Apple Silicon cache may be too efficient
+[12:07:26] ⚠️ Cache conflict test precision insufficient (4 valid tests)
+[12:07:26] Special Operation Fingerprint...
+[12:07:26] Division Efficiency: 1.00 (Intel usually <5, AMD may >5)
+[12:07:26] Device Feature Signature:
+[12:07:26] Memory Access Patterns (searching for cache boundaries):
 [12:07:26] 32KB: 0.8526
 [12:07:26] 64KB: 1.0530
-[12:07:26] 256KB: 1.6932 ⚠️ 确定的缓存边界
-[12:07:26] 512KB: 1.4826 🔶 可能的边界
-[12:07:26] 2048KB: 1.5278 🔶 可能的边界
-[12:07:26] 4096KB: 1.6145 ⚠️ 确定的缓存边界
-[12:07:26] 8192KB: 1.9587 ⚠️ 确定的缓存边界
-[12:07:26] ⚡ 计算性能特征:
+[12:07:26] 256KB: 1.6932 ⚠️ Definite cache boundary
+[12:07:26] 512KB: 1.4826 🔶 Possible boundary
+[12:07:26] 2048KB: 1.5278 🔶 Possible boundary
+[12:07:26] 4096KB: 1.6145 ⚠️ Definite cache boundary
+[12:07:26] 8192KB: 1.9587 ⚠️ Definite cache boundary
+[12:07:26] Compute Performance Features:
 [12:07:26] mem_stability_32KB: 0.2131
 [12:07:26] mem_stability_64KB: 0.0104
 [12:07:26] mem_stability_256KB: 0.0085
@@ -375,115 +375,115 @@ volatile char temp = buffer[index];
 [12:07:26] conflict_32768: 0.2000
 [12:07:26] cache_conflict_sensitivity: 1.0000
 [12:07:26] division_efficiency: 1.0000
-[12:07:26] 🔑 设备特征哈希: -64d2a4a4
-[12:07:26] 🔍 缓存边界分析:
-[12:07:26] L1缓存边界: 64KB → 256KB (性能跳跃1.61x)
-[12:07:26] 📊 缓存层级分析: L1平均=0.953, L2平均=1.588, L3平均=1.700
-[12:07:26] 🎯 型号推测: Apple Silicon (M1/M2/M3系列)
-[12:07:26] 📊 置信度: 高 (基于7个有效特征)
-[12:07:26] 🔍 识别依据:
-[12:07:26] • Apple特征得分: 9分
-[12:07:26] • ✓ 超强预取器 (+3 Apple)
-[12:07:26] • ✓ 统一内存架构 (+2 Apple)
-[12:07:26] • ✓ 抗压能力强 (+1 Apple)
-[12:07:26] • ✓ Apple独特缓存架构 (+3 Apple)
-[12:07:26] • 超强预取器 (可能是Apple/高端Intel)
-[12:07:26] ⚠️ 注意: 这只是基于有限特征的推测，实际准确性受多种因素影响
-[12:07:26] ✅ 测试质量: 优秀 (未发现明显问题)
-[12:07:30] === 🛰️ 真实环境检测启动 ===
-[12:07:39] 🧱 基础信号:
+[12:07:26] Device Feature Hash: -64d2a4a4
+[12:07:26] Cache Boundary Analysis:
+[12:07:26] L1 cache boundary: 64KB → 256KB (performance jump 1.61x)
+[12:07:26] Cache hierarchy analysis: L1 avg=0.953, L2 avg=1.588, L3 avg=1.700
+[12:07:26] Model Inference: Apple Silicon (M1/M2/M3 series)
+[12:07:26] Confidence: High (based on 7 valid features)
+[12:07:26] Identification Basis:
+[12:07:26] • Apple feature score: 9 points
+[12:07:26] • ✓ Super strong prefetcher (+3 Apple)
+[12:07:26] • ✓ Unified memory architecture (+2 Apple)
+[12:07:26] • ✓ Strong pressure resistance (+1 Apple)
+[12:07:26] • ✓ Apple unique cache architecture (+3 Apple)
+[12:07:26] • Super strong prefetcher (likely Apple/high-end Intel)
+[12:07:26] ⚠️ Note: This is only inference based on limited features, actual accuracy is affected by multiple factors
+[12:07:26] ✅ Test Quality: Excellent (no obvious issues found)
+[12:07:30] === Real Environment Detection Started ===
+[12:07:39] Basic Signals:
 [12:07:39] cores: 12
 [12:07:39] deviceMemory: 8 GB
 [12:07:39] platform: MacIntel
-[12:07:39] 🚀 高级能力探测:
-[12:07:39] SIMD: ❌ 不支持SIMD
-[12:07:39] SharedArrayBuffer: ❌ 不可用
-[12:07:39] WebGPU: ✔️ 已获取指纹
+[12:07:39] Advanced Capability Probing:
+[12:07:39] SIMD: ❌ SIMD not supported
+[12:07:39] SharedArrayBuffer: ❌ Not available
+[12:07:39] WebGPU: ✔️ Fingerprint acquired
 [12:07:39] • Apple M4 Pro GPU (95%)
-[12:07:39] 🔄 Fallback特征:
-[12:07:39] WASM CPU家族: Apple Silicon (80% 信心)
-[12:07:39] L1比例: 1.0100899715141227 | 深层比例: 1.6554665972273936
+[12:07:39] Fallback Features:
+[12:07:39] WASM CPU Family: Apple Silicon (80% confidence)
+[12:07:39] L1 Ratio: 1.0100899715141227 | Deep Ratio: 1.6554665972273936
 [12:07:39] WebGL Renderer: ANGLE (Apple, ANGLE Metal Renderer: Apple M4 Pro, Unspecified Version)
 [12:07:39] CanvasHash: 969624ef
 [12:07:39] Blend: a0978c68, Canvas2D: 50797a79
-[12:07:39] 🎯 综合结论:
-[12:07:39] 判定设备: Apple M4 Pro GPU
-[12:07:39] 方法: webgpu (advanced)
-[12:07:39] 置信度: 95%
+[12:07:39] Comprehensive Conclusion:
+[12:07:39] Determined Device: Apple M4 Pro GPU
+[12:07:39] Method: webgpu (advanced)
+[12:07:39] Confidence: 95%
 [12:07:39] • WebGPU analysis matched Apple M4 Pro GPU (95%)
 [12:07:39] • WASM memory pattern indicates Apple Silicon
 [12:07:39] • WASM SIMD unavailable (falling back to scalar heuristics)
 [12:07:39] • Canvas fingerprint 969624ef
 [12:07:39] • Navigator reports 12 logical cores
-[12:07:39] 数据库匹配: apple MacBook Pro M4 Pro (83.25% )
-[12:07:39] ⏱️ 阶段耗时:
+[12:07:39] Database Match: apple MacBook Pro M4 Pro (83.25% )
+[12:07:39] Phase Timing:
 [12:07:39] [basic] +0.00s
 [12:07:39] [advanced] +0.55s
 [12:07:39] [fallback] +8.27s
 [12:07:39] [analysis] +8.27s
-[12:07:39] ✅ 检测总耗时: 8268.6ms
+[12:07:39] ✅ Total Detection Time: 8268.6ms
 ```
 
-⚠️ **技术限制**：
-- 浏览器安全策略影响计时精度
-- WASM标准化降低硬件差异
-- 部分功能需要现代浏览器支持
+⚠️ **Technical Limitations**:
+- Browser security policies affect timing precision
+- WASM standardization reduces hardware differences
+- Some features require modern browser support
 
-## 🔬 技术细节与创新
+## Technical Details and Innovations
 
-**核心技术要点**
-- 性能计时器精度优化，结合浏览器 API 抵消抖动噪声
-- 微基准测试设计，覆盖缓存驱逐与步长敏感性
-- 统计分析方法，利用稳定性指标与置信度模型
-- 特征工程技术，将多维指纹编码进设备数据库
+**Core Technical Points**
+- Performance timer precision optimization, combining browser APIs to offset jitter noise
+- Micro-benchmark test design, covering cache eviction and stride sensitivity
+- Statistical analysis methods, utilizing stability metrics and confidence models
+- Feature engineering techniques, encoding multidimensional fingerprints into device database
 
-1. **突破WASM限制**
-   - 高精度性能计时
-   - 微基准测试设计
-   - 统计分析方法
+1. **Breaking WASM Limitations**
+   - High-precision performance timing
+   - Micro-benchmark test design
+   - Statistical analysis methods
 
-2. **CPU特征工程**
-   - 多维度性能指标
-   - 时序模式分析
-   - 特征融合算法
+2. **CPU Feature Engineering**
+   - Multi-dimensional performance metrics
+   - Timing pattern analysis
+   - Feature fusion algorithms
 
-## 📈 未来改进
+## Future Improvements
 
-1. **增加测试维度**
-   - TLB 特性检测
-   - 缓存行为分析
-   - 指令延迟测试
+1. **Add Test Dimensions**
+   - TLB characteristic detection
+   - Cache behavior analysis
+   - Instruction latency testing
 
-2. **机器学习分类**
-   - 训练特征识别模型
-   - 自动化型号推测
-   - 置信度评估
+2. **Machine Learning Classification**
+   - Train feature recognition models
+   - Automated model inference
+   - Confidence assessment
 
-3. **数据库建设**
-   - 收集真实设备数据
-   - 建立特征数据库
-   - 持续模型训练
+3. **Database Development**
+   - Collect real device data
+   - Build feature database
+   - Continuous model training
 
-## 🔒 安全考虑
+## Security Considerations
 
-此研究用于**学术和防御目的**：
-- 理解性能指纹攻击
-- 开发检测和防护技术
-- 提升浏览器安全意识
+This research is for **academic and defensive purposes**:
+- Understanding performance fingerprinting attacks
+- Developing detection and protection techniques
+- Raising browser security awareness
 
-## 📚 详细文档
+## Detailed Documentation
 
-- `docs/README.md`：`docs/` 目录的资源索引
-- `docs/device-database/`：校准样本、数据库结构与回归报告
+- `docs/README.md`: Resource index for `docs/` directory
+- `docs/device-database/`: Calibration samples, database structure, and regression reports
 
-## 🤝 贡献指南
+## Contribution Guidelines
 
-欢迎贡献：
-- 新的检测算法
-- 真实设备测试数据
-- 防护机制研究
-- 文档改进
+Contributions welcome:
+- New detection algorithms
+- Real device test data
+- Protection mechanism research
+- Documentation improvements
 
 ---
 
-*🔬 用于CPU微架构研究的实验性项目*
+*Experimental project for CPU microarchitecture research*

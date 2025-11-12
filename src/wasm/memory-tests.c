@@ -2,14 +2,14 @@
 #include <stdlib.h>
 #include <string.h>
 
-// 高强度内存访问测试 - 顺序访问
+// High-intensity memory access test - sequential access
 EMSCRIPTEN_KEEPALIVE
 double sequential_access_test(int size_kb, int iterations) {
     int size = size_kb * 1024;
     volatile char* buffer = (volatile char*)malloc(size);
     if (!buffer) return -1.0;
 
-    // 强制内存初始化，避免优化
+    // Force memory initialization to avoid optimization
     for (int i = 0; i < size; i++) {
         buffer[i] = (char)(i & 0xFF);
     }
@@ -17,14 +17,14 @@ double sequential_access_test(int size_kb, int iterations) {
     volatile long sum = 0;
     volatile long dummy = 0;
 
-    // 使用更大的工作量确保可测量的差异
+    // Use larger workload to ensure measurable differences
     for (int iter = 0; iter < iterations; iter++) {
-        // 多重访问模式确保内存压力
+        // Multiple access patterns to ensure memory pressure
         for (int pass = 0; pass < 3; pass++) {
-            for (int i = 0; i < size; i += 64) {  // 缓存行对齐
+            for (int i = 0; i < size; i += 64) {  // Cache line aligned
                 sum += buffer[i];
-                sum += buffer[i + 32];  // 同一缓存行内的另一个位置
-                // 强制依赖链，防止乱序执行优化
+                sum += buffer[i + 32];  // Another location within same cache line
+                // Force dependency chain to prevent out-of-order execution optimization
                 dummy = sum & 0xFF;
                 buffer[i] = (char)dummy;
             }
@@ -35,14 +35,14 @@ double sequential_access_test(int size_kb, int iterations) {
     return (double)sum;
 }
 
-// 高强度内存访问测试 - 随机访问（故意制造缓存未命中）
+// High-intensity memory access test - random access (deliberately create cache misses)
 EMSCRIPTEN_KEEPALIVE
 double random_access_test(int size_kb, int iterations) {
     int size = size_kb * 1024;
     volatile char* buffer = (volatile char*)malloc(size);
     if (!buffer) return -1.0;
 
-    // 强制内存初始化，避免优化
+    // Force memory initialization to avoid optimization
     for (int i = 0; i < size; i++) {
         buffer[i] = (char)(i & 0xFF);
     }
@@ -51,32 +51,32 @@ double random_access_test(int size_kb, int iterations) {
     volatile long dummy = 0;
     unsigned int seed = 12345;
 
-    // 大幅增加工作量和随机性，制造真正的缓存未命中
+    // Greatly increase workload and randomness to create real cache misses
     for (int iter = 0; iter < iterations; iter++) {
-        // 多重随机访问模式
+        // Multiple random access patterns
         for (int pass = 0; pass < 3; pass++) {
             int access_count = size / 64;
 
             for (int i = 0; i < access_count; i++) {
-                // 生成大步幅随机访问，保证跨越多个缓存行和页面
+                // Generate large-stride random access, ensuring cross multiple cache lines and pages
                 seed = seed * 1664525 + 1013904223;
-                int stride = 2048 + (seed % 2048);  // 2KB-4KB随机步幅
+                int stride = 2048 + (seed % 2048);  // 2KB-4KB random stride
                 int index1 = (seed % (size / stride)) * stride;
 
-                // 第二个随机位置，确保不在同一缓存行
+                // Second random location, ensure not in same cache line
                 seed = seed * 1103515245 + 12345;
                 int index2 = ((seed % (size / stride)) * stride + 512) % size;
 
-                // 第三个位置，更大的跳跃
+                // Third location, larger jump
                 seed = seed * 69069 + 1;
-                int index3 = (seed % (size / 4096)) * 4096;  // 页面边界访问
+                int index3 = (seed % (size / 4096)) * 4096;  // Page boundary access
 
-                // 多次访问增加缓存压力
+                // Multiple accesses to increase cache pressure
                 sum += buffer[index1];
                 sum += buffer[index2];
                 sum += buffer[index3];
 
-                // 强制写入制造更多缓存未命中
+                // Forced writes create more cache misses
                 dummy = sum & 0xFF;
                 buffer[index1] = (char)dummy;
                 buffer[index2] = (char)(dummy + 1);
@@ -88,14 +88,14 @@ double random_access_test(int size_kb, int iterations) {
     return (double)sum;
 }
 
-// 步长访问测试 - 修复预取器检测逻辑
+// Stride access test - fixed prefetcher detection logic
 EMSCRIPTEN_KEEPALIVE
 double stride_access_test(int size_kb, int stride, int iterations) {
     int size = size_kb * 1024;
     volatile char* buffer = (volatile char*)malloc(size);
     if (!buffer) return -1.0;
 
-    // 初始化缓冲区，确保页面被分配
+    // Initialize buffer to ensure pages are allocated
     for (int i = 0; i < size; i++) {
         buffer[i] = (char)(i & 0xFF);
     }
@@ -103,33 +103,33 @@ double stride_access_test(int size_kb, int stride, int iterations) {
     volatile long sum = 0;
     volatile long access_count = 0;
 
-    // 平衡工作量：确保不同步长的总访问次数相对平衡
+    // Balance workload: ensure total access counts for different strides are relatively balanced
     int total_accesses = 0;
-    int max_accesses = 50000;  // 固定最大访问次数，避免极端差异
+    int max_accesses = 50000;  // Fixed maximum access count to avoid extreme differences
 
-    // 改进的平衡算法：确保不同步长的性能比例合理
-    int base_accesses = 25000;  // 基础访问次数
-    int stride_factor = (stride < 64) ? 1 : (stride / 64);  // 步长因子
-    int adjusted_max = base_accesses + (stride_factor * 10000);  // 动态调整最大访问次数
+    // Improved balance algorithm: ensure reasonable performance ratios for different strides
+    int base_accesses = 25000;  // Base access count
+    int stride_factor = (stride < 64) ? 1 : (stride / 64);  // Stride factor
+    int adjusted_max = base_accesses + (stride_factor * 10000);  // Dynamically adjust maximum access count
 
-    // 限制极端值
+    // Limit extreme values
     if (adjusted_max > 100000) adjusted_max = 100000;
     if (adjusted_max < 15000) adjusted_max = 15000;
 
-    // 计算合适的轮数
+    // Calculate appropriate number of rounds
     int accesses_per_round = (size / stride) > 0 ? (size / stride) : 1;
     int target_rounds = adjusted_max / accesses_per_round;
     if (target_rounds < 1) target_rounds = 1;
     if (target_rounds > iterations * 10) target_rounds = iterations * 10;
 
     for (int iter = 0; iter < target_rounds && total_accesses < adjusted_max; iter++) {
-        // 步长访问模式，增加一些随机性减少预取器效果
+        // Stride access pattern, add some randomness to reduce prefetcher effect
         for (int i = 0; i < size; i += stride) {
             if (total_accesses >= adjusted_max) break;
 
-            // 基本访问，添加轻微随机偏移
+            // Basic access, add slight random offset
             int base_index = i;
-            int random_shift = (iter * 17 + total_accesses * 7) % 8;  // 小范围随机偏移
+            int random_shift = (iter * 17 + total_accesses * 7) % 8;  // Small range random offset
             int final_index = (base_index + random_shift) % size;
 
             sum += buffer[final_index];
@@ -137,7 +137,7 @@ double stride_access_test(int size_kb, int stride, int iterations) {
             total_accesses++;
             access_count++;
 
-            // 对于大步长，添加额外的缓存未命中访问
+            // For large strides, add extra cache miss accesses
             if (stride >= 256 && total_accesses < adjusted_max) {
                 int far_offset = (stride / 2) + (iter * 23) % (stride / 4);
                 int far_index = (i + far_offset) % size;
@@ -150,11 +150,11 @@ double stride_access_test(int size_kb, int stride, int iterations) {
     }
 
     free((void*)buffer);
-    // 返回访问计数，JavaScript端会测量时间
+    // Return access count, JavaScript side will measure time
     return (double)access_count;
 }
 
-// 修复版分配模式测试
+// Fixed allocation pattern test
 EMSCRIPTEN_KEEPALIVE
 double allocation_pattern_test(int num_allocs, int alloc_size) {
     void** ptrs = malloc(sizeof(void*) * num_allocs);
@@ -162,17 +162,17 @@ double allocation_pattern_test(int num_allocs, int alloc_size) {
 
     volatile long total_bytes = 0;
 
-    // 测试分配性能
+    // Test allocation performance
     for (int i = 0; i < num_allocs; i++) {
         ptrs[i] = malloc(alloc_size);
         if (ptrs[i]) {
-            // 简单初始化防止优化
+            // Simple initialization to prevent optimization
             memset(ptrs[i], i & 0xFF, alloc_size);
             total_bytes += alloc_size;
         }
     }
 
-    // 释放内存
+    // Free memory
     for (int i = 0; i < num_allocs; i++) {
         if (ptrs[i]) {
             free(ptrs[i]);
@@ -183,14 +183,14 @@ double allocation_pattern_test(int num_allocs, int alloc_size) {
     return (double)total_bytes;
 }
 
-// 修复版对齐敏感性测试
+// Fixed alignment sensitivity test
 EMSCRIPTEN_KEEPALIVE
 double alignment_sensitivity_test(int size_kb, int offset) {
     int size = size_kb * 1024;
     char* base_buffer = malloc(size + 64);  // 额外空间用于对齐调整
     if (!base_buffer) return -1.0;
 
-    // 创建带偏移的缓冲区
+    // Create buffer with offset
     char* buffer = base_buffer + (offset % 64);
     memset(buffer, 1, size);
 
@@ -205,7 +205,7 @@ double alignment_sensitivity_test(int size_kb, int offset) {
     return (double)sum;
 }
 
-// 修复版大块内存操作测试
+// Fixed bulk memory operation test
 EMSCRIPTEN_KEEPALIVE
 double bulk_memory_test(int size_kb) {
     int size = size_kb * 1024;
@@ -218,15 +218,15 @@ double bulk_memory_test(int size_kb) {
         return -1.0;
     }
 
-    // 初始化源数据
+    // Initialize source data
     for (int i = 0; i < size; i++) {
         src[i] = i & 0xFF;
     }
 
-    // 测试memcpy性能
+    // Test memcpy performance
     memcpy(dst, src, size);
 
-    // 验证复制结果
+    // Verify copy result
     volatile long sum = 0;
     for (int i = 0; i < size; i += 64) {
         sum += dst[i];
@@ -237,14 +237,14 @@ double bulk_memory_test(int size_kb) {
     return (double)sum;
 }
 
-// L1缓存大小探测算法 - 修复Apple Silicon支持
+// L1 cache size detection algorithm - fixed Apple Silicon support
 EMSCRIPTEN_KEEPALIVE
 double l1_cache_size_detection(int max_size_kb) {
     double baseline_latency = 0;
     double min_latency = 999999.0;
-    int best_l1_size = 64;  // 更合理的默认值
+    int best_l1_size = 64;  // More reasonable default value
 
-    // 扩大测试范围以覆盖Apple Silicon的192KB L1缓存 (M4 Pro性能核)
+    // Expand test range to cover Apple Silicon's 192KB L1 cache (M4 Pro performance cores)
     int test_sizes[] = {16, 32, 48, 64, 96, 128, 160, 192, 224, 256, 320};
     int num_tests = 11;
 
@@ -257,43 +257,43 @@ double l1_cache_size_detection(int max_size_kb) {
 
         memset(buffer, 1, size);
 
-        // 测量时间密集的随机访问延迟
+        // Measure time-intensive random access latency
         volatile long sum = 0;
-        unsigned int seed = 12345 + t;  // 每次测试使用不同种子
-        int iterations = 1000;  // 增加迭代次数提高精度
+        unsigned int seed = 12345 + t;  // Use different seed for each test
+        int iterations = 1000;  // Increase iterations for better precision
 
         for (int iter = 0; iter < iterations; iter++) {
             for (int i = 0; i < size; i += 64) {
-                // 产生随机访问模式
+                // Generate random access pattern
                 seed = seed * 1664525 + 1013904223;
                 int random_offset = (seed % 64);
                 sum += buffer[(i + random_offset) % size];
             }
         }
 
-        // 计算平均访问延迟
+        // Calculate average access latency
         double latency = (double)sum / (iterations * (size / 64));
 
         if (t == 0) {
             baseline_latency = latency;
         }
 
-        // 寻找延迟最低的点作为L1缓存大小
+        // Find lowest latency point as L1 cache size
         if (latency < min_latency) {
             min_latency = latency;
             best_l1_size = size_kb;
         }
 
-        // 对于Apple Silicon，特殊处理不同配置
+        // Special handling for Apple Silicon different configurations
         if (size_kb == 192 && latency < baseline_latency * 1.15) {
-            best_l1_size = 192;  // Apple Silicon M4 Pro性能核特征 (128+64KB)
+            best_l1_size = 192;  // Apple Silicon M4 Pro performance core features (128+64KB)
         } else if (size_kb == 128 && latency < baseline_latency * 1.1) {
-            // 可能是较老的Apple Silicon或其他高端CPU
+            // May be older Apple Silicon or other high-end CPU
             if (best_l1_size < 192) {
                 best_l1_size = 128;
             }
         } else if (size_kb == 64 && latency < baseline_latency * 1.1) {
-            // 能效核或传统架构
+            // Efficiency cores or traditional architecture
             if (best_l1_size < 128) {
                 best_l1_size = 64;
             }
@@ -305,7 +305,7 @@ double l1_cache_size_detection(int max_size_kb) {
     return (double)best_l1_size;
 }
 
-// L2缓存大小探测算法 - 修复M4 Pro支持
+// L2 cache size detection algorithm - fixed M4 Pro support
 EMSCRIPTEN_KEEPALIVE
 double l2_cache_size_detection(int max_size_kb) {
     double baseline_latency = 0;
@@ -414,7 +414,7 @@ double l2_cache_size_detection(int max_size_kb) {
     return (double)best_l2_size;
 }
 
-// L3缓存大小探测算法
+// L3 cache size detection algorithm
 EMSCRIPTEN_KEEPALIVE
 double l3_cache_size_detection(int max_size_mb) {
     double baseline_latency = 0;
@@ -455,7 +455,7 @@ double l3_cache_size_detection(int max_size_mb) {
     return (double)best_l3_size;
 }
 
-// 缓存行大小检测 - 修复版
+// Cache line size detection - fixed version
 EMSCRIPTEN_KEEPALIVE
 double cache_line_size_detection() {
     int likely_cache_line_size = 64;  // 默认64字节
