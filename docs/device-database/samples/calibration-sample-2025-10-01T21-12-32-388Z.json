@@ -1,0 +1,341 @@
+{
+  "createdAt": "2025-10-01T21:12:32.386Z",
+  "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36 GLS/100.10.9602.96",
+  "wasm": {
+    "features": {
+      "mem_ratio_16KB": 5.166666666666667,
+      "mem_ratio_32KB": 5.66666746139539,
+      "mem_ratio_64KB": 5.861702129988602,
+      "mem_ratio_256KB": 5.925133694254226,
+      "float_precision": 2107.286993285348,
+      "integer_opt": 568132,
+      "vector_comp": 51.45729015900539,
+      "branch_pred": 38128193,
+      "simd_supported": false,
+      "simd_speedup": null,
+      "simd_vector_ratio": 3.0000023841880648,
+      "hardware_concurrency": 16,
+      "worker_spawn_cap": 24,
+      "worker_latency_median": 9.399999976158142,
+      "worker_latency_mean": 9.470833351214727,
+      "l1_kb": 192,
+      "l2_kb": 640,
+      "l3_mb": 8,
+      "cache_line": 128,
+      "tlb_entries": 64,
+      "stride_ms": {
+        "64": 0.6000001430511475,
+        "128": 0.5,
+        "256": 0.7000000476837158,
+        "512": 0.9000000953674316,
+        "4096": 1
+      },
+      "mem_ratio_l1_band": 5.764184795691996,
+      "mem_ratio_deep": 5.925133694254226
+    },
+    "memoryResults": {
+      "16KB": {
+        "sequential": {
+          "time": 5.1000001430511475,
+          "mean": 9.742857149669103,
+          "rsd": 1.0987017218641122,
+          "iterations": 20000
+        },
+        "random": {
+          "time": 26.399999856948853,
+          "mean": 50.17142851012094,
+          "rsd": 1.1300085222355523,
+          "iterations": 20000
+        },
+        "ratio": 5.166666666666667
+      },
+      "32KB": {
+        "sequential": {
+          "time": 9.299999952316284,
+          "mean": 19.68571424484253,
+          "rsd": 1.1089289243167268,
+          "iterations": 20000
+        },
+        "random": {
+          "time": 53.799999952316284,
+          "mean": 100.17142851012093,
+          "rsd": 1.1235846607544495,
+          "iterations": 20000
+        },
+        "ratio": 5.66666746139539
+      },
+      "64KB": {
+        "sequential": {
+          "time": 20.200000047683716,
+          "mean": 36.57142857142857,
+          "rsd": 1.1449520844511636,
+          "iterations": 20000
+        },
+        "random": {
+          "time": 125.09999990463257,
+          "mean": 204.05714290482658,
+          "rsd": 1.100351686308431,
+          "iterations": 20000
+        },
+        "ratio": 5.861702129988602
+      },
+      "256KB": {
+        "sequential": {
+          "time": 74.79999995231628,
+          "mean": 142.4999999659402,
+          "rsd": 1.1077839257381987,
+          "iterations": 20000
+        },
+        "random": {
+          "time": 443.2000000476837,
+          "mean": 841.5000000340598,
+          "rsd": 1.1034838719790092,
+          "iterations": 20000
+        },
+        "ratio": 5.925133694254226
+      }
+    },
+    "computeResults": {
+      "float": {
+        "result": 2107.286993285348,
+        "time": 0.2999999523162842
+      },
+      "integer": {
+        "result": 568132,
+        "time": 0.20000004768371582
+      },
+      "vector": {
+        "result": 51.45729015900539,
+        "time": 0.19999980926513672
+      },
+      "branch": {
+        "result": 38128193,
+        "time": 0.09999990463256836
+      }
+    },
+    "structure": {
+      "l1_kb": 192,
+      "l2_kb": 640,
+      "l3_mb": 8,
+      "cache_line": 128,
+      "tlb_entries": 64
+    },
+    "workerProfile": {
+      "available": true,
+      "hardwareConcurrency": 16,
+      "spawned": 24,
+      "tested": 24,
+      "medianLatency": 9.399999976158142,
+      "meanLatency": 9.470833351214727,
+      "failureReason": null
+    },
+    "hash": "-4c777200"
+  },
+  "webgl": {
+    "basic": {
+      "vendor": "WebKit",
+      "renderer": "ANGLE (AMD, AMD Radeon (TM) Graphics (0x000015E7) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+      "version": "WebGL 1.0 (OpenGL ES 2.0 Chromium)",
+      "shadingLanguageVersion": "WebGL GLSL ES 1.0 (OpenGL ES GLSL ES 1.0 Chromium)"
+    },
+    "extensions": {
+      "all": [
+        "ANGLE_instanced_arrays",
+        "EXT_blend_minmax",
+        "EXT_clip_control",
+        "EXT_color_buffer_half_float",
+        "EXT_depth_clamp",
+        "EXT_disjoint_timer_query",
+        "EXT_float_blend",
+        "EXT_frag_depth",
+        "EXT_polygon_offset_clamp",
+        "EXT_shader_texture_lod",
+        "EXT_texture_compression_bptc",
+        "EXT_texture_compression_rgtc",
+        "EXT_texture_filter_anisotropic",
+        "EXT_texture_mirror_clamp_to_edge",
+        "EXT_sRGB",
+        "KHR_parallel_shader_compile",
+        "OES_element_index_uint",
+        "OES_fbo_render_mipmap",
+        "OES_standard_derivatives",
+        "OES_texture_float",
+        "OES_texture_float_linear",
+        "OES_texture_half_float",
+        "OES_texture_half_float_linear",
+        "OES_vertex_array_object",
+        "WEBGL_blend_func_extended",
+        "WEBGL_color_buffer_float",
+        "WEBGL_compressed_texture_s3tc",
+        "WEBGL_compressed_texture_s3tc_srgb",
+        "WEBGL_debug_renderer_info",
+        "WEBGL_debug_shaders",
+        "WEBGL_depth_texture",
+        "WEBGL_draw_buffers",
+        "WEBGL_lose_context",
+        "WEBGL_multi_draw",
+        "WEBGL_polygon_mode"
+      ],
+      "important": [
+        "EXT_texture_filter_anisotropic",
+        "EXT_sRGB",
+        "OES_texture_float",
+        "OES_texture_half_float",
+        "WEBGL_compressed_texture_s3tc",
+        "WEBGL_debug_renderer_info",
+        "WEBGL_depth_texture",
+        "WEBGL_lose_context"
+      ],
+      "count": 35
+    },
+    "canvasHash": "c4d05691",
+    "canvasVariants": {
+      "blend": "f7be0885",
+      "canvas2d": "74600800"
+    },
+    "performance": {
+      "simpleRender": 2.1000001430511475,
+      "complexRender": 2.799999952316284,
+      "textureOps": 0.2999999523162842
+    },
+    "precision": {
+      "vertexHighFloat": {},
+      "vertexMediumFloat": {},
+      "vertexLowFloat": {},
+      "fragmentHighFloat": {},
+      "fragmentMediumFloat": {},
+      "fragmentLowFloat": {}
+    },
+    "limits": {
+      "maxTextureSize": 16384,
+      "maxViewportDims": {
+        "0": 32767,
+        "1": 32767
+      },
+      "maxVertexAttribs": 16,
+      "maxVertexTextureImageUnits": 16,
+      "maxTextureImageUnits": 16,
+      "maxCombinedTextureImageUnits": 32,
+      "maxFragmentUniformVectors": 1024,
+      "maxVertexUniformVectors": 4096,
+      "maxVaryingVectors": 30,
+      "aliasedLineWidthRange": {
+        "0": 1,
+        "1": 1
+      },
+      "aliasedPointSizeRange": {
+        "0": 1,
+        "1": 1024
+      }
+    },
+    "timestamp": 1759353149830,
+    "signatureHash": "-588bf86b"
+  },
+  "webgpu": {
+    "adapter": {
+      "vendor": "amd",
+      "architecture": "rdna-2",
+      "device": "",
+      "description": "",
+      "subgroupMinSize": 64,
+      "subgroupMaxSize": 128
+    },
+    "capabilities": {
+      "features": [
+        "core-features-and-limits"
+      ],
+      "limits": {
+        "maxTextureSize": 8192,
+        "maxBufferSize": 268435456,
+        "maxStorageBufferSize": 134217728,
+        "maxComputeWorkgroupSizeX": 256,
+        "maxComputeWorkgroupSizeY": 256,
+        "maxComputeWorkgroupSizeZ": 64,
+        "maxComputeInvocationsPerWorkgroup": 256,
+        "maxComputeWorkgroupsPerDimension": 65535
+      }
+    },
+    "timing": {
+      "timerResolution": {
+        "average": 7.386206914638651,
+        "minimum": 3,
+        "maximum": 8.900000095367432,
+        "standardDeviation": 1.8991330156413926,
+        "measurements": [
+          8.399999856948853,
+          8.5,
+          8.200000047683716,
+          8.300000190734863,
+          8.200000047683716,
+          8,
+          8.299999952316284,
+          8.100000143051147,
+          7.8999998569488525,
+          8.900000095367432,
+          8.5,
+          8.400000095367432,
+          8.299999952316284,
+          8.399999856948853,
+          8.5,
+          8.400000095367432,
+          8.799999952316284,
+          8.399999856948853,
+          8.799999952316284,
+          8.300000190734863,
+          8.400000095367432,
+          8.599999904632568,
+          8.200000047683716,
+          8.599999904632568,
+          8.600000143051147,
+          8.599999904632568,
+          3,
+          3.700000047683716,
+          3.6000001430511475,
+          3.700000047683716,
+          3.6000001430511475,
+          3.5999999046325684,
+          3.3999998569488525,
+          3.9000000953674316,
+          3.5
+        ]
+      },
+      "memoryBandwidth": {
+        "bandwidthGB": 2876.908285168323,
+        "bandwidthMB": 2945954.0840123626,
+        "method": "compute_shader_memory_intensive",
+        "bufferSize": 268435456,
+        "workgroups": 262144,
+        "validTests": 2,
+        "rawResults": [
+          {
+            "gbPerSec": 128.81679385405556,
+            "mbPerSec": 131908.3969065529
+          },
+          {
+            "gbPerSec": 5624.99977648259,
+            "mbPerSec": 5759999.771118172
+          }
+        ]
+      },
+      "computeLatency": {
+        "simple": 4,
+        "math_intensive": 0.7999999523162842,
+        "memory_intensive": 55.39999985694885
+      },
+      "cacheProfile": {
+        "sequential": 7.5,
+        "stride_4": 4.199999809265137,
+        "stride_16": 3.5,
+        "random": 6.200000047683716,
+        "cacheEfficiency": 0.8266666730244955
+      }
+    },
+    "timestamp": 1759353152386,
+    "signatureHash": "6f03a7b5"
+  },
+  "meta": {
+    "page": "enhanced-detection.html",
+    "wasmRuntimeInitialized": true
+  },
+  "errors": {}
+}

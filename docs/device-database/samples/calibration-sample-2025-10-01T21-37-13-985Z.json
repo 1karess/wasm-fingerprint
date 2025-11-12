@@ -1,0 +1,241 @@
+{
+  "createdAt": "2025-10-01T21:37:13.984Z",
+  "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+  "wasm": {
+    "features": {
+      "mem_ratio_16KB": 3.7708894694749,
+      "mem_ratio_32KB": 3.787500003973643,
+      "mem_ratio_64KB": 3.800000003565138,
+      "mem_ratio_256KB": 3.8585365807137837,
+      "float_precision": 2107.286993285348,
+      "integer_opt": 568132,
+      "vector_comp": 51.45729015900539,
+      "branch_pred": 38128193,
+      "simd_supported": false,
+      "simd_speedup": null,
+      "simd_vector_ratio": 2.0000023841880648,
+      "hardware_concurrency": 16,
+      "worker_spawn_cap": 24,
+      "worker_latency_median": 5.549999952316284,
+      "worker_latency_mean": 5.912499984105428,
+      "l1_kb": 192,
+      "l2_kb": 640,
+      "l3_mb": 8,
+      "cache_line": 128,
+      "tlb_entries": 64,
+      "stride_ms": {
+        "64": 0.40000009536743164,
+        "128": 0.5,
+        "256": 0.6999998092651367,
+        "512": 0.9000000953674316,
+        "4096": 1
+      },
+      "mem_ratio_l1_band": 3.7937500037693903,
+      "mem_ratio_deep": 3.8585365807137837
+    },
+    "memoryResults": {
+      "16KB": {
+        "sequential": {
+          "time": 7.299999713897705,
+          "mean": 14.085714203970772,
+          "rsd": 1.1207406127678157,
+          "iterations": 20000
+        },
+        "random": {
+          "time": 29.59999990463257,
+          "mean": 54.08571440832956,
+          "rsd": 1.1110947696153475,
+          "iterations": 20000
+        },
+        "ratio": 3.7708894694749
+      },
+      "32KB": {
+        "sequential": {
+          "time": 15.700000286102295,
+          "mean": 28.228571483067103,
+          "rsd": 1.115916388571663,
+          "iterations": 20000
+        },
+        "random": {
+          "time": 59.60000038146973,
+          "mean": 104.92857149669102,
+          "rsd": 1.0923574936784417,
+          "iterations": 20000
+        },
+        "ratio": 3.787500003973643
+      },
+      "64KB": {
+        "sequential": {
+          "time": 29.799999713897705,
+          "mean": 54.85714272090367,
+          "rsd": 1.114284242190773,
+          "iterations": 20000
+        },
+        "random": {
+          "time": 112.80000019073486,
+          "mean": 208.67142861230033,
+          "rsd": 1.116605992250205,
+          "iterations": 20000
+        },
+        "ratio": 3.800000003565138
+      },
+      "256KB": {
+        "sequential": {
+          "time": 122.5,
+          "mean": 226.20000008174353,
+          "rsd": 1.1324095899008237,
+          "iterations": 20000
+        },
+        "random": {
+          "time": 472.2999997138977,
+          "mean": 896.0142857006618,
+          "rsd": 1.1647782330152268,
+          "iterations": 20000
+        },
+        "ratio": 3.8585365807137837
+      }
+    },
+    "computeResults": {
+      "float": {
+        "result": 2107.286993285348,
+        "time": 0.09999990463256836
+      },
+      "integer": {
+        "result": 568132,
+        "time": 0.19999980926513672
+      },
+      "vector": {
+        "result": 51.45729015900539,
+        "time": 0.40000009536743164
+      },
+      "branch": {
+        "result": 38128193,
+        "time": 0
+      }
+    },
+    "structure": {
+      "l1_kb": 192,
+      "l2_kb": 640,
+      "l3_mb": 8,
+      "cache_line": 128,
+      "tlb_entries": 64
+    },
+    "workerProfile": {
+      "available": true,
+      "hardwareConcurrency": 16,
+      "spawned": 24,
+      "tested": 24,
+      "medianLatency": 5.549999952316284,
+      "meanLatency": 5.912499984105428,
+      "failureReason": null
+    },
+    "hash": "63adbc51"
+  },
+  "webgl": {
+    "basic": {
+      "vendor": "WebKit",
+      "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+      "version": "WebGL 1.0 (OpenGL ES 2.0 Chromium)",
+      "shadingLanguageVersion": "WebGL GLSL ES 1.0 (OpenGL ES GLSL ES 1.0 Chromium)"
+    },
+    "extensions": {
+      "all": [
+        "ANGLE_instanced_arrays",
+        "EXT_blend_minmax",
+        "EXT_clip_control",
+        "EXT_color_buffer_half_float",
+        "EXT_depth_clamp",
+        "EXT_float_blend",
+        "EXT_frag_depth",
+        "EXT_polygon_offset_clamp",
+        "EXT_shader_texture_lod",
+        "EXT_texture_compression_bptc",
+        "EXT_texture_compression_rgtc",
+        "EXT_texture_filter_anisotropic",
+        "EXT_texture_mirror_clamp_to_edge",
+        "EXT_sRGB",
+        "OES_element_index_uint",
+        "OES_fbo_render_mipmap",
+        "OES_standard_derivatives",
+        "OES_texture_float",
+        "OES_texture_float_linear",
+        "OES_texture_half_float",
+        "OES_texture_half_float_linear",
+        "OES_vertex_array_object",
+        "WEBGL_color_buffer_float",
+        "WEBGL_compressed_texture_astc",
+        "WEBGL_compressed_texture_etc",
+        "WEBGL_compressed_texture_etc1",
+        "WEBGL_compressed_texture_s3tc",
+        "WEBGL_compressed_texture_s3tc_srgb",
+        "WEBGL_debug_renderer_info",
+        "WEBGL_debug_shaders",
+        "WEBGL_depth_texture",
+        "WEBGL_draw_buffers",
+        "WEBGL_lose_context",
+        "WEBGL_multi_draw",
+        "WEBGL_polygon_mode"
+      ],
+      "important": [
+        "EXT_texture_filter_anisotropic",
+        "EXT_sRGB",
+        "OES_texture_float",
+        "OES_texture_half_float",
+        "WEBGL_compressed_texture_etc1",
+        "WEBGL_compressed_texture_s3tc",
+        "WEBGL_debug_renderer_info",
+        "WEBGL_depth_texture",
+        "WEBGL_lose_context"
+      ],
+      "count": 35
+    },
+    "canvasHash": "e289ff12",
+    "canvasVariants": {
+      "blend": "b14fda33",
+      "canvas2d": "e47dda42"
+    },
+    "performance": {
+      "simpleRender": 1.799999713897705,
+      "complexRender": 1.700000286102295,
+      "textureOps": 0.2999997138977051
+    },
+    "precision": {
+      "vertexHighFloat": {},
+      "vertexMediumFloat": {},
+      "vertexLowFloat": {},
+      "fragmentHighFloat": {},
+      "fragmentMediumFloat": {},
+      "fragmentLowFloat": {}
+    },
+    "limits": {
+      "maxTextureSize": 8192,
+      "maxViewportDims": {
+        "0": 8192,
+        "1": 8192
+      },
+      "maxVertexAttribs": 16,
+      "maxVertexTextureImageUnits": 32,
+      "maxTextureImageUnits": 32,
+      "maxCombinedTextureImageUnits": 64,
+      "maxFragmentUniformVectors": 4096,
+      "maxVertexUniformVectors": 4096,
+      "maxVaryingVectors": 31,
+      "aliasedLineWidthRange": {
+        "0": 1,
+        "1": 1
+      },
+      "aliasedPointSizeRange": {
+        "0": 1,
+        "1": 1023
+      }
+    },
+    "timestamp": 1759354633976,
+    "signatureHash": "-7613203"
+  },
+  "webgpu": null,
+  "meta": {
+    "page": "enhanced-detection.html",
+    "wasmRuntimeInitialized": true
+  },
+  "errors": {}
+}

@@ -205,7 +205,7 @@ class RealWorldDetector {
         if (this._deviceDatabase && fallback?.wasm?.cpuType) {
             try {
                 const cpuFeatures = {
-                    model: fallback.wasm.cpuType.family || '未知架构',
+                    model: fallback.wasm.cpuType.family || 'Unknown Architecture',
                     confidence: fallback.wasm.cpuType.confidence ?? 0,
                     memRatio: fallback.wasm.cpuType.overall ?? null,
                     memRatioL1: fallback.wasm.cpuType.l1Band ?? null,

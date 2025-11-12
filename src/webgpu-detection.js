@@ -1,6 +1,6 @@
 /**
  * WebGPU Device Fingerprinting Module
- * 基于WebGPU-SPY研究的GPU指纹识别系统
+ * GPU fingerprinting system based on WebGPU-SPY research
  */
 
 class WebGPUFingerprinter {
@@ -15,46 +15,46 @@ class WebGPUFingerprinter {
         if (this.isInitialized) return true;
 
         try {
-            // 检查WebGPU支持
+            // Check WebGPU support
             if (!navigator.gpu) {
-                throw new Error('WebGPU不受支持');
+                throw new Error('WebGPU not supported');
             }
 
-            // 请求适配器
+            // Request adapter
             this.adapter = await navigator.gpu.requestAdapter({
                 powerPreference: 'high-performance'
             });
 
             if (!this.adapter) {
-                throw new Error('无法获取GPU适配器');
+                throw new Error('Unable to acquire GPU adapter');
             }
 
-            // 请求设备
+            // Request device
             this.device = await this.adapter.requestDevice({
                 requiredFeatures: [],
                 requiredLimits: {}
             });
 
             if (!this.device) {
-                throw new Error('无法获取GPU设备');
+                throw new Error('Unable to acquire GPU device');
             }
 
             this.isInitialized = true;
             return true;
 
         } catch (error) {
-            console.error('WebGPU初始化失败:', error);
+            console.error('WebGPU initialization failed:', error);
             return false;
         }
     }
 
     /**
-     * 获取GPU适配器信息
+     * Get GPU adapter information
      */
     getAdapterInfo() {
         if (!this.adapter) return {};
 
-        // 2025年新API: 直接访问adapter.info
+        // 2025 new API: direct access to adapter.info
         const info = this.adapter.info || {};
 
         return {
@@ -68,7 +68,7 @@ class WebGPUFingerprinter {
     }
 
     /**
-     * 获取GPU特性和限制
+     * Get GPU features and limits
      */
     getDeviceCapabilities() {
         if (!this.device) return {};
@@ -92,8 +92,8 @@ class WebGPUFingerprinter {
     }
 
     /**
-     * GPU时序攻击测试 (基于WebGPU-SPY)
-     * 通过GPU硬件资源构建高精度计时器
+     * GPU timing attack test (based on WebGPU-SPY)
+     * Build high-precision timer through GPU hardware resources
      */
     async performTimingAttacks() {
         if (!this.device) return {};
@@ -101,35 +101,35 @@ class WebGPUFingerprinter {
         const results = {};
 
         try {
-            // 1. GPU计时器精度测试
+            // 1. GPU timer precision test
             const timerResolution = await this.measureGPUTimerResolution();
             results.timerResolution = timerResolution;
 
-            // 2. 内存带宽测试
+            // 2. Memory bandwidth test
             const memoryBandwidth = await this.measureMemoryBandwidth();
             results.memoryBandwidth = memoryBandwidth;
 
-            // 3. 计算延迟测试
+            // 3. Computation latency test
             const computeLatency = await this.measureComputeLatency();
             results.computeLatency = computeLatency;
 
-            // 4. 缓存行为分析
+            // 4. Cache behavior analysis
             const cacheProfile = await this.analyzeCacheBehavior();
             results.cacheProfile = cacheProfile;
 
         } catch (error) {
-            console.error('GPU时序攻击失败:', error);
+            console.error('GPU timing attack failed:', error);
         }
 
         return results;
     }
 
     /**
-     * 测量GPU计时器分辨率
+     * Measure GPU timer resolution
      */
     async measureGPUTimerResolution() {
         try {
-            // 创建简单的空操作计算着色器
+            // Create simple no-op compute shader
             const shaderModule = this.device.createShaderModule({
                 code: `
                     @compute @workgroup_size(1)
@@ -169,10 +169,10 @@ class WebGPUFingerprinter {
             }
 
             if (!samples.length) {
-                throw new Error('计时器采样不足');
+                throw new Error('Insufficient timer samples');
             }
 
-            // 使用截尾平均降低异常值影响
+            // Use truncated mean to reduce outlier impact
             const sorted = [...samples].sort((a, b) => a - b);
             const trim = Math.max(1, Math.floor(sorted.length * 0.1));
             const trimmed = sorted.slice(trim, sorted.length - trim);
@@ -191,26 +191,26 @@ class WebGPUFingerprinter {
             };
 
         } catch (error) {
-            console.error('GPU计时器测试失败:', error);
+            console.error('GPU timer test failed:', error);
             return null;
         }
     }
 
     /**
-     * 测量内存带宽
+     * Measure memory bandwidth
      */
     async measureMemoryBandwidth() {
         try {
-            // Apple Silicon统一内存架构需要不同的测试方法
-            // 使用计算着色器进行大量内存访问来测量真实带宽
+            // Apple Silicon unified memory architecture requires different testing approach
+            // Use compute shader for large memory access to measure real bandwidth
 
             const maxAlloc = this.device.limits?.maxBufferSize || (512 * 1024 * 1024);
-            const targetSize = 512 * 1024 * 1024; // 512MB 目标，若硬件不支持会自动降级
+            const targetSize = 512 * 1024 * 1024; // 512MB target, will automatically downgrade if hardware does not support
             const bufferSize = Math.min(targetSize, maxAlloc - (maxAlloc % 4));
             const workgroupSize = 256;
             const numWorkgroups = Math.floor(bufferSize / 4 / workgroupSize); // 4 bytes per float
 
-            // 创建计算着色器测试内存带宽
+            // Create compute shader to test memory bandwidth
             const computeShaderSource = `
                 @group(0) @binding(0) var<storage, read_write> data: array<f32>;
 
@@ -219,16 +219,16 @@ class WebGPUFingerprinter {
                     let index = global_id.x;
                     if (index >= arrayLength(&data)) { return; }
 
-                    // 内存密集操作：大量顺序和随机访问
+                    // Memory intensive operations: large amount of sequential and random access
                     var sum: f32 = 0.0;
-                    let stride = 1024u; // 4KB步长，避开L1缓存
+                    let stride = 1024u; // 4KB stride, avoid L1 cache
 
-                    // 多轮内存访问增加带宽压力
+                    // Multiple rounds of memory access to increase bandwidth pressure
                     for (var i = 0u; i < 80u; i++) {
                         let read_index = (index + i * stride) % arrayLength(&data);
                         sum += data[read_index];
                     }
-                    data[index] = sum * 0.001; // 写回操作
+                    data[index] = sum * 0.001; // Write-back operation
                 }
             `;
 
@@ -241,7 +241,7 @@ class WebGPUFingerprinter {
                 usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
             });
 
-            // 初始化数据
+            // Initialize data
             const initData = new Float32Array(bufferSize / 4);
             for (let i = 0; i < initData.length; i++) {
                 initData[i] = Math.random();
@@ -283,8 +283,8 @@ class WebGPUFingerprinter {
                 const end = performance.now();
 
                 const executionTime = end - start;
-                if (executionTime > 1.0) { // 至少1ms才可信
-                    // 估算带宽：每个工作项读取80次(4字节)，写入1次(4字节)
+                if (executionTime > 1.0) { // At least 1ms is reliable
+                    // Estimate bandwidth: each work item reads 80 times (4 bytes), writes 1 time (4 bytes)
                     const bytesAccessed = numWorkgroups * workgroupSize * (80 * 4 + 1 * 4);
                     const bandwidthBytesPerSec = bytesAccessed / (executionTime / 1000);
                     bandwidthResults.push({
@@ -311,20 +311,20 @@ class WebGPUFingerprinter {
                 };
             }
 
-            throw new Error('内存带宽测试失败');
+            throw new Error('Memory bandwidth test failed');
 
         } catch (error) {
-            console.error('内存带宽测试失败:', error);
+            console.error('Memory bandwidth test failed:', error);
             return null;
         }
     }
 
     /**
-     * 测量计算延迟
+     * Measure computation latency
      */
     async measureComputeLatency() {
         try {
-            // 创建足够大的输出缓冲区确保结果被实际使用
+            // Create large enough output buffer to ensure results are actually used
             const bufferSize = 4 * 1024 * 1024; // 4MB
             const numElements = bufferSize / 4;
 
@@ -338,12 +338,12 @@ class WebGPUFingerprinter {
                 usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ
             });
 
-            // 不同复杂度的计算着色器 - 修复工作负载平衡问题
+            // Compute shaders of different complexity - fix workload balance issue
             const testCases = [
                 {
                     name: 'simple',
                     workgroupSize: 256,
-                    iterations: 8000, // 基础迭代次数
+                    iterations: 8000, // Base iteration count
                     shader: `
                         @group(0) @binding(0) var<storage, read_write> output: array<f32>;
 
@@ -353,10 +353,10 @@ class WebGPUFingerprinter {
                             if (index >= arrayLength(&output)) { return; }
 
                             var result: f32 = f32(index);
-                            // 简单计算：基础算术运算
+                            // Simple computation: basic arithmetic operations
                             for (var i = 0u; i < 500u; i++) {
                                 result = result + f32(i) * 0.001;
-                                result = result * 0.999 + 0.001; // 简单乘法和加法
+                                result = result * 0.999 + 0.001; // Simple multiplication and addition
                             }
                             output[index] = result;
                         }
@@ -365,7 +365,7 @@ class WebGPUFingerprinter {
                 {
                     name: 'math_intensive',
                     workgroupSize: 256,
-                    iterations: 8000, // 相同迭代次数但内部计算更复杂
+                    iterations: 8000, // Same iteration count but more complex internal computation
                     shader: `
                         @group(0) @binding(0) var<storage, read_write> output: array<f32>;
 
@@ -375,13 +375,13 @@ class WebGPUFingerprinter {
                             if (index >= arrayLength(&output)) { return; }
 
                             var result = f32(index) * 0.001;
-                            // 数学密集：大量三角函数和平方根（比简单计算多得多的操作）
-                            for (var i = 0u; i < 1500u; i++) { // 3倍的循环次数
+                            // Math intensive: large amount of trigonometric and square root operations (much more than simple computation)
+                            for (var i = 0u; i < 1500u; i++) { // 3x loop count
                                 let fi = f32(i) * 0.01;
-                                result = sin(result + fi) * cos(result - fi); // 复杂三角运算
-                                result = sqrt(abs(result)) + pow(result, 1.1); // 平方根和幂运算
-                                result = log(abs(result) + 1.0) + exp(result * 0.01); // 对数和指数
-                                result = result * 0.99 + 0.01; // 防止溢出
+                                result = sin(result + fi) * cos(result - fi); // Complex trigonometric operations
+                                result = sqrt(abs(result)) + pow(result, 1.1); // Square root and power operations
+                                result = log(abs(result) + 1.0) + exp(result * 0.01); // Logarithm and exponential
+                                result = result * 0.99 + 0.01; // Prevent overflow
                             }
                             output[index] = result;
                         }
@@ -390,7 +390,7 @@ class WebGPUFingerprinter {
                 {
                     name: 'memory_intensive',
                     workgroupSize: 256,
-                    iterations: 8000, // 相同迭代次数
+                    iterations: 8000, // Same iteration count
                     shader: `
                         @group(0) @binding(0) var<storage, read_write> output: array<f32>;
 
@@ -400,15 +400,15 @@ class WebGPUFingerprinter {
                             if (index >= arrayLength(&output)) { return; }
 
                             var sum: f32 = 0.0;
-                            let stride = 1024u; // 大步长制造缓存未命中
+                            let stride = 1024u; // Large stride to create cache misses
 
-                            // 内存密集：比简单计算更多的内存访问
-                            for (var i = 0u; i < 800u; i++) { // 比简单计算更多的循环
+                            // Memory intensive: more memory access than simple computation
+                            for (var i = 0u; i < 800u; i++) { // More loops than simple computation
                                 let read_idx = (index + i * stride) % arrayLength(&output);
                                 let write_idx = (index + i * 64u) % arrayLength(&output);
-                                sum += output[read_idx]; // 读取操作
-                                output[write_idx] = sum * 0.001; // 写入操作
-                                // 额外的内存访问增加负载
+                                sum += output[read_idx]; // Read operation
+                                output[write_idx] = sum * 0.001; // Write operation
+                                // Additional memory access increases load
                                 let extra_idx = (index + i * 128u) % arrayLength(&output);
                                 sum += output[extra_idx] * 0.1;
                             }
@@ -434,7 +434,7 @@ class WebGPUFingerprinter {
                         }
                     });
 
-                    // 为内存密集型测试创建缓冲区
+                    // Create buffer for memory-intensive test
                     let buffer = null;
                     let bindGroup = null;
                     if (testCase.name === 'memory_intensive') {
@@ -452,7 +452,7 @@ class WebGPUFingerprinter {
                         });
                     }
 
-                    // 测量执行时间
+                    // Measure execution time
                     const start = performance.now();
 
                     const commandEncoder = this.device.createCommandEncoder();
@@ -469,11 +469,11 @@ class WebGPUFingerprinter {
 
                     results[testCase.name] = end - start;
 
-                    // 清理
+                    // Cleanup
                     if (buffer) buffer.destroy();
 
                 } catch (error) {
-                    console.error(`计算测试 ${testCase.name} 失败:`, error);
+                    console.error(`Computation test ${testCase.name} failed:`, error);
                     results[testCase.name] = null;
                 }
             }
@@ -481,17 +481,17 @@ class WebGPUFingerprinter {
             return results;
 
         } catch (error) {
-            console.error('计算延迟测试失败:', error);
+            console.error('Computation latency test failed:', error);
             return null;
         }
     }
 
     /**
-     * 分析GPU缓存行为
+     * Analyze GPU cache behavior
      */
     async analyzeCacheBehavior() {
         try {
-            // 不同访问模式的内存测试
+            // Memory tests with different access patterns
             const accessPatterns = [
                 { name: 'sequential', stride: 1 },
                 { name: 'stride_4', stride: 4 },
@@ -509,7 +509,7 @@ class WebGPUFingerprinter {
                     fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
                         let index = global_id.x;
                         if (index < arrayLength(&data)) {
-                            // 伪随机访问
+                            // Pseudo-random access
                             let random_index = (index * 17u + 31u) % arrayLength(&data);
                             data[random_index] = data[random_index] + 1.0;
                         }
@@ -561,12 +561,12 @@ class WebGPUFingerprinter {
                     buffer.destroy();
 
                 } catch (error) {
-                    console.error(`缓存测试 ${pattern.name} 失败:`, error);
+                    console.error(`Cache test ${pattern.name} failed:`, error);
                     results[pattern.name] = null;
                 }
             }
 
-            // 计算缓存效率指标
+            // Calculate cache efficiency metric
             if (results.sequential && results.random) {
                 results.cacheEfficiency = results.random / results.sequential;
             }
@@ -574,13 +574,13 @@ class WebGPUFingerprinter {
             return results;
 
         } catch (error) {
-            console.error('缓存行为分析失败:', error);
+            console.error('Cache behavior analysis failed:', error);
             return null;
         }
     }
 
     /**
-     * 执行完整的WebGPU指纹识别
+     * Execute complete WebGPU fingerprinting
      */
     async generateFingerprint() {
         if (!await this.initialize()) {
@@ -594,7 +594,7 @@ class WebGPUFingerprinter {
             timestamp: Date.now()
         };
 
-        // 生成综合特征哈希
+        // Generate comprehensive feature hash
         const signature = JSON.stringify(fingerprint);
         let hash = 0;
         for (let i = 0; i < signature.length; i++) {
@@ -606,22 +606,22 @@ class WebGPUFingerprinter {
     }
 
     /**
-     * 分析GPU型号（基于WebGPU特征）
+     * Analyze GPU model (based on WebGPU features)
      */
     analyzeGPUModel(fingerprint) {
-        if (!fingerprint) return { model: '未知', confidence: 0, evidence: [] };
+        if (!fingerprint) return { model: 'Unknown', confidence: 0, evidence: [] };
 
         const evidence = [];
         let confidence = 0;
-        let model = '未知GPU';
+        let model = 'UnknownGPU';
 
         const adapter = fingerprint.adapter || {};
         const normalizedVendor = this._normalizeAdapterVendor(adapter);
         const timing = fingerprint.timing || {};
 
-        // 基于适配器信息分析
+        // Analysis based on adapter information
         if (adapter.vendor) {
-            evidence.push(`GPU厂商: ${adapter.vendor}`);
+            evidence.push(`GPU Vendor: ${adapter.vendor}`);
 
             if (normalizedVendor === 'apple') {
                 model = 'Apple GPU';
@@ -629,10 +629,10 @@ class WebGPUFingerprinter {
 
                 if (adapter.architecture && adapter.architecture.includes('apple-gpu')) {
                     confidence = 90;
-                    evidence.push('Apple GPU架构确认');
+                    evidence.push('Apple GPU architecture confirmed');
                 }
 
-                // 基于subgroup size分析具体型号
+                // Analyze specific model based on subgroup size
                 if (adapter.subgroupMaxSize >= 32) {
                     if (adapter.architecture && adapter.architecture.includes('metal-3')) {
                         model = 'Apple M4 Pro GPU';
@@ -646,66 +646,66 @@ class WebGPUFingerprinter {
             else if (normalizedVendor === 'intel') {
                 model = 'Intel GPU';
                 confidence = 80;
-                evidence.push('Intel GPU特征');
+                evidence.push('Intel GPU characteristics');
             }
             else if (normalizedVendor === 'nvidia') {
                 model = 'NVIDIA GPU';
                 confidence = 80;
-                evidence.push('NVIDIA GPU特征');
+                evidence.push('NVIDIA GPU characteristics');
             }
             else if (normalizedVendor === 'amd') {
                 model = 'AMD GPU';
                 confidence = 80;
-                evidence.push('AMD GPU特征');
+                evidence.push('AMD GPU characteristics');
             }
         }
 
-        // 基于性能特征分析
+        // Analysis based on performance features
         if (timing.memoryBandwidth) {
             const { bandwidthGB, bandwidthMB } = timing.memoryBandwidth;
             const hasGB = typeof bandwidthGB === 'number' && isFinite(bandwidthGB);
             const hasMB = typeof bandwidthMB === 'number' && isFinite(bandwidthMB);
             if (hasGB) {
-                evidence.push(`内存带宽: ${bandwidthGB.toFixed(2)} GB/s`);
+                evidence.push(`Memory Bandwidth: ${bandwidthGB.toFixed(2)} GB/s`);
             } else if (hasMB) {
-                evidence.push(`内存带宽: ${(bandwidthMB / 1024).toFixed(2)} GB/s (估算)`);
+                evidence.push(`Memory Bandwidth: ${(bandwidthMB / 1024).toFixed(2)} GB/s (estimated)`);
             }
 
             const bandwidthScore = hasGB ? bandwidthGB : (hasMB ? bandwidthMB / 1024 : null);
             if (typeof bandwidthScore === 'number' && bandwidthScore > 100) {
-                evidence.push('高性能GPU特征');
+                evidence.push('High-performance GPU features');
                 confidence = Math.min(confidence + 10, 95);
             } else if (typeof bandwidthScore === 'number' && bandwidthScore < 50) {
-                evidence.push('集成显卡特征');
-                if (model === '未知GPU') {
-                    model = '集成显卡';
+                evidence.push('Integrated graphics characteristics');
+                if (model === 'UnknownGPU') {
+                    model = 'Integrated Graphics';
                     confidence = 70;
                 }
             }
         }
 
-        // 基于计算延迟分析
+        // Analysis based on computation latency
         if (timing.computeLatency) {
             const { simple, math_intensive } = timing.computeLatency;
 
             if (simple && math_intensive) {
                 const ratio = math_intensive / simple;
-                evidence.push(`计算复杂度比例: ${ratio.toFixed(2)}`);
+                evidence.push(`Computation complexity ratio: ${ratio.toFixed(2)}`);
 
                 if (ratio < 5) {
-                    evidence.push('强大的并行计算能力');
+                    evidence.push('Strong parallel computing capability');
                     confidence = Math.min(confidence + 5, 95);
                 }
             }
         }
 
-        // 基于缓存效率分析
+        // Analysis based on cache efficiency
         if (timing.cacheProfile && timing.cacheProfile.cacheEfficiency) {
             const efficiency = timing.cacheProfile.cacheEfficiency;
-            evidence.push(`缓存效率: ${efficiency.toFixed(2)}`);
+            evidence.push(`Cache Efficiency: ${efficiency.toFixed(2)}`);
 
             if (efficiency < 1.5) {
-                evidence.push('优秀的缓存架构');
+                evidence.push('Excellent cache architecture');
                 confidence = Math.min(confidence + 5, 95);
             }
         }
@@ -740,22 +740,22 @@ class WebGPUFingerprinter {
     }
 
     /**
-     * 运行计算性能测试
+     * Run computation performance test
      */
     async runComputePerformanceTest() {
         if (!this.device) {
-            throw new Error('WebGPU设备未初始化');
+            throw new Error('WebGPU device not initialized');
         }
 
         try {
             const results = {};
 
-            // 简单计算测试
+            // Simple computation test
             const simpleComputeShader = `
                 @compute @workgroup_size(64)
                 fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
                     let index = global_id.x;
-                    // 简单计算测试
+                    // Simple computation test
                 }
             `;
 
@@ -771,7 +771,7 @@ class WebGPUFingerprinter {
                 }
             });
 
-            // 创建命令编码器
+            // Create command encoder
             const commandEncoder = this.device.createCommandEncoder();
             const passEncoder = commandEncoder.beginComputePass();
             passEncoder.setPipeline(computePipeline);
@@ -789,7 +789,7 @@ class WebGPUFingerprinter {
             return results;
 
         } catch (error) {
-            console.warn('WebGPU计算性能测试失败:', error);
+            console.warn('WebGPU computation performance test failed:', error);
             return {
                 status: 'failed',
                 error: error.message,
@@ -799,7 +799,7 @@ class WebGPUFingerprinter {
     }
 
     /**
-     * 清理资源
+     * Cleanup resources
      */
     cleanup() {
         if (this.device) {
@@ -811,7 +811,7 @@ class WebGPUFingerprinter {
     }
 }
 
-// 导出模块
+// Export module
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = WebGPUFingerprinter;
 } else if (typeof window !== 'undefined') {

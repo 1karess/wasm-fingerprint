@@ -1,6 +1,6 @@
 /**
  * WebGL Device Fingerprinting Module
- * 结合CPU检测实现精确设备型号识别
+ * Combine with CPU detection for precise device model identification
  */
 
 class WebGLFingerprinter {
@@ -15,30 +15,30 @@ class WebGLFingerprinter {
         if (this.isInitialized) return true;
 
         try {
-            // 创建隐藏canvas
+            // Create hidden canvas
             this.canvas = document.createElement('canvas');
             this.canvas.width = 256;
             this.canvas.height = 256;
             this.canvas.style.display = 'none';
             document.body.appendChild(this.canvas);
 
-            // 获取WebGL上下文
+            // Get WebGL context
             this.gl = this.canvas.getContext('webgl') || this.canvas.getContext('experimental-webgl');
 
             if (!this.gl) {
-                throw new Error('WebGL不受支持');
+                throw new Error('WebGL not supported');
             }
 
             this.isInitialized = true;
             return true;
         } catch (error) {
-            console.error('WebGL初始化失败:', error);
+            console.error('WebGL initialization failed:', error);
             return false;
         }
     }
 
     /**
-     * 获取GPU基础信息
+     * Get GPU basic information
      */
     getBasicGPUInfo() {
         if (!this.gl) return {};
@@ -56,14 +56,14 @@ class WebGLFingerprinter {
     }
 
     /**
-     * 获取支持的扩展列表
+     * Get list of supported extensions
      */
     getSupportedExtensions() {
         if (!this.gl) return [];
 
         const extensions = this.gl.getSupportedExtensions() || [];
 
-        // 重点关注的GPU特征扩展
+        // Key GPU feature extensions
         const importantExtensions = [
             'WEBGL_debug_renderer_info',
             'OES_texture_float',
@@ -84,7 +84,7 @@ class WebGLFingerprinter {
     }
 
     /**
-     * 生成Canvas渲染指纹
+     * Generate Canvas rendering fingerprint
      */
     generateCanvasFingerprint() {
         if (!this.gl) return { primary: '', variants: {} };
@@ -97,26 +97,26 @@ class WebGLFingerprinter {
         try {
             hashes.primary = this.renderPrimaryWebGLHash();
         } catch (error) {
-            console.error('Canvas指纹生成失败:', error);
+            console.error('Canvas fingerprint generation failed:', error);
         }
 
         try {
             hashes.variants.blend = this.renderBlendFingerprint();
         } catch (error) {
-            console.warn('WebGL混合指纹生成失败:', error);
+            console.warn('WebGL hybrid fingerprint generation failed:', error);
         }
 
         try {
             hashes.variants.canvas2d = this.generateCanvas2DHash();
         } catch (error) {
-            console.warn('Canvas2D指纹生成失败:', error);
+            console.warn('Canvas2D fingerprint generation failed:', error);
         }
 
         return hashes;
     }
 
     renderPrimaryWebGLHash() {
-        // 清除画布
+        // Clear canvas
         this.gl.clearColor(0.0, 0.0, 0.0, 1.0);
         this.gl.clear(this.gl.COLOR_BUFFER_BIT);
 
@@ -299,7 +299,7 @@ class WebGLFingerprinter {
     }
 
     /**
-     * 创建着色器程序
+     * Create shader program
      */
     createShaderProgram(vertexSource, fragmentSource) {
         const vertexShader = this.createShader(this.gl.VERTEX_SHADER, vertexSource);
@@ -313,7 +313,7 @@ class WebGLFingerprinter {
         this.gl.linkProgram(program);
 
         if (!this.gl.getProgramParameter(program, this.gl.LINK_STATUS)) {
-            console.error('着色器程序链接失败:', this.gl.getProgramInfoLog(program));
+            console.error('Shader program linking failed:', this.gl.getProgramInfoLog(program));
             return null;
         }
 
@@ -321,7 +321,7 @@ class WebGLFingerprinter {
     }
 
     /**
-     * 创建着色器
+     * Create shader
      */
     createShader(type, source) {
         const shader = this.gl.createShader(type);
@@ -329,7 +329,7 @@ class WebGLFingerprinter {
         this.gl.compileShader(shader);
 
         if (!this.gl.getShaderParameter(shader, this.gl.COMPILE_STATUS)) {
-            console.error('着色器编译失败:', this.gl.getShaderInfoLog(shader));
+            console.error('Shader compilation failed:', this.gl.getShaderInfoLog(shader));
             return null;
         }
 
@@ -337,7 +337,7 @@ class WebGLFingerprinter {
     }
 
     /**
-     * 测试GPU渲染性能
+     * Test GPU rendering performance
      */
     async measureRenderingPerformance() {
         if (!this.gl) return {};
@@ -345,7 +345,7 @@ class WebGLFingerprinter {
         const results = {};
 
         try {
-            // 测试1: 简单三角形渲染
+            // Test 1: Simple triangle rendering
             const simpleStart = performance.now();
             for (let i = 0; i < 100; i++) {
                 this.gl.clear(this.gl.COLOR_BUFFER_BIT);
@@ -353,10 +353,10 @@ class WebGLFingerprinter {
             }
             results.simpleRender = performance.now() - simpleStart;
 
-            // 测试2: 复杂片段着色器渲染
+            // Test 2: Complex fragment shader rendering
             const complexStart = performance.now();
 
-            // 创建复杂片段着色器
+            // Create complex fragment shader
             const complexFragmentShader = `
                 precision mediump float;
                 void main() {
@@ -373,7 +373,7 @@ class WebGLFingerprinter {
             `;
 
             try {
-                // 创建并编译复杂着色器
+                // Create and compile complex shader
                 const vertexShaderSource = `
                     attribute vec2 position;
                     void main() {
@@ -397,7 +397,7 @@ class WebGLFingerprinter {
                 if (this.gl.getProgramParameter(complexProgram, this.gl.LINK_STATUS)) {
                     this.gl.useProgram(complexProgram);
 
-                    // 创建全屏四边形进行复杂渲染
+                    // Create fullscreen quad for complex rendering
                     const quadVertices = new Float32Array([
                         -1, -1,  1, -1,  -1, 1,
                          1, -1,   1, 1,   -1, 1
@@ -411,14 +411,14 @@ class WebGLFingerprinter {
                     this.gl.enableVertexAttribArray(positionLocation);
                     this.gl.vertexAttribPointer(positionLocation, 2, this.gl.FLOAT, false, 0, 0);
 
-                    // 执行复杂渲染测试 - 多次绘制增加GPU工作量
+                    // Execute complex rendering test - multiple draws to increase GPU workload
                     for (let i = 0; i < 20; i++) {
                         this.gl.clear(this.gl.COLOR_BUFFER_BIT);
                         this.gl.drawArrays(this.gl.TRIANGLES, 0, 6);
-                        this.gl.finish(); // 确保GPU完成渲染
+                        this.gl.finish(); // Ensure GPU completes rendering
                     }
 
-                    // 清理资源
+                    // Cleanup resources
                     this.gl.deleteProgram(complexProgram);
                     this.gl.deleteShader(vertexShader);
                     this.gl.deleteShader(fragmentShader);
@@ -427,8 +427,8 @@ class WebGLFingerprinter {
 
                 results.complexRender = performance.now() - complexStart;
             } catch (error) {
-                console.warn('复杂着色器测试失败，使用fallback:', error);
-                // 如果复杂着色器失败，至少做一些工作量测试
+                console.warn('Complex shader test failed, using fallback:', error);
+                // If complex shader fails, at least do some workload test
                 for (let i = 0; i < 50; i++) {
                     this.gl.clear(this.gl.COLOR_BUFFER_BIT);
                     this.gl.drawArrays(this.gl.TRIANGLES, 0, 3);
@@ -437,7 +437,7 @@ class WebGLFingerprinter {
                 results.complexRender = performance.now() - complexStart;
             }
 
-            // 测试3: 纹理操作性能
+            // Test 3: Texture operation performance
             const textureStart = performance.now();
             const texture = this.gl.createTexture();
             this.gl.bindTexture(this.gl.TEXTURE_2D, texture);
@@ -447,14 +447,14 @@ class WebGLFingerprinter {
             results.textureOps = performance.now() - textureStart;
 
         } catch (error) {
-            console.error('GPU性能测试失败:', error);
+            console.error('GPU performance test failed:', error);
         }
 
         return results;
     }
 
     /**
-     * 测试浮点精度特征
+     * Test floating-point precision features
      */
     getFloatingPointPrecision() {
         if (!this.gl) return {};
@@ -470,7 +470,7 @@ class WebGLFingerprinter {
     }
 
     /**
-     * 获取GPU限制参数
+     * Get GPU limit parameters
      */
     getGPULimits() {
         if (!this.gl) return {};
@@ -490,13 +490,13 @@ class WebGLFingerprinter {
                 aliasedPointSizeRange: this.gl.getParameter(this.gl.ALIASED_POINT_SIZE_RANGE)
             };
         } catch (error) {
-            console.error('获取GPU限制失败:', error);
+            console.error('Failed to get GPU limits:', error);
             return {};
         }
     }
 
     /**
-     * 执行完整的WebGL指纹识别
+     * Execute complete WebGL fingerprint recognition
      */
     async generateFingerprint() {
         if (!await this.initialize()) {
@@ -516,7 +516,7 @@ class WebGLFingerprinter {
             timestamp: Date.now()
         };
 
-        // 生成综合特征哈希
+        // Generate comprehensive feature hash
         const signature = JSON.stringify(fingerprint);
         let hash = 0;
         for (let i = 0; i < signature.length; i++) {
@@ -528,25 +528,25 @@ class WebGLFingerprinter {
     }
 
     /**
-     * 分析GPU型号（基于WebGL特征）
+     * Analyze GPU model (based on WebGL features)
      */
     analyzeGPUModel(fingerprint) {
-        if (!fingerprint) return { model: '未知', confidence: 0, evidence: [] };
+        if (!fingerprint) return { model: 'Unknown', confidence: 0, evidence: [] };
 
         const evidence = [];
         let confidence = 0;
-        let model = '未知GPU';
+        let model = 'UnknownGPU';
 
-        // 分析渲染器字符串
+        // Analyze renderer string
         const renderer = fingerprint.basic.renderer || '';
         const vendor = fingerprint.basic.vendor || '';
         const normalizedVendor = this._normalizeVendor(renderer, vendor);
 
-        // Apple GPU检测
+        // Apple GPU detection
         if (renderer.includes('Apple') || renderer.includes('M1') || renderer.includes('M2') || renderer.includes('M3')) {
             model = 'Apple Silicon GPU';
             confidence = 90;
-            evidence.push('渲染器字符串包含Apple特征');
+            evidence.push('Renderer string contains Apple features');
 
             if (renderer.includes('M1 Pro') || renderer.includes('M1 Max')) {
                 model = 'Apple M1 Pro/Max GPU';
@@ -556,10 +556,10 @@ class WebGLFingerprinter {
                 confidence = 95;
             }
         }
-        // Intel GPU检测
+        // Intel GPU detection
         else if (renderer.includes('Intel') || vendor.includes('Intel')) {
             confidence = 80;
-            evidence.push('Intel GPU特征');
+            evidence.push('Intel GPU characteristics');
 
             if (renderer.includes('Iris Xe')) {
                 model = 'Intel Iris Xe Graphics';
@@ -571,13 +571,13 @@ class WebGLFingerprinter {
                 model = 'Intel HD Graphics';
                 confidence = 85;
             } else {
-                model = 'Intel集成显卡';
+                model = 'Intel Integrated Graphics';
             }
         }
-        // NVIDIA GPU检测
+        // NVIDIA GPU detection
         else if (renderer.includes('NVIDIA') || renderer.includes('GeForce') || renderer.includes('RTX') || renderer.includes('GTX')) {
             confidence = 85;
-            evidence.push('NVIDIA GPU特征');
+            evidence.push('NVIDIA GPU characteristics');
 
             if (renderer.includes('RTX 4090')) {
                 model = 'NVIDIA GeForce RTX 4090';
@@ -586,50 +586,50 @@ class WebGLFingerprinter {
                 model = 'NVIDIA GeForce RTX 4080';
                 confidence = 95;
             } else if (renderer.includes('RTX 30')) {
-                model = 'NVIDIA GeForce RTX 30系列';
+                model = 'NVIDIA GeForce RTX 30 Series';
                 confidence = 90;
             } else if (renderer.includes('RTX')) {
-                model = 'NVIDIA GeForce RTX系列';
+                model = 'NVIDIA GeForce RTX Series';
                 confidence = 85;
             } else {
-                model = 'NVIDIA显卡';
+                model = 'NVIDIA Graphics Card';
             }
         }
-        // AMD GPU检测
+        // AMD GPU detection
         else if (renderer.includes('AMD') || renderer.includes('Radeon') || renderer.includes('RDNA')) {
             confidence = 80;
-            evidence.push('AMD GPU特征');
+            evidence.push('AMD GPU characteristics');
 
             if (renderer.includes('RX 7900')) {
-                model = 'AMD Radeon RX 7900系列';
+                model = 'AMD Radeon RX 7900 Series';
                 confidence = 95;
             } else if (renderer.includes('RX 6000')) {
-                model = 'AMD Radeon RX 6000系列';
+                model = 'AMD Radeon RX 6000 Series';
                 confidence = 90;
             } else {
-                model = 'AMD Radeon显卡';
+                model = 'AMD Radeon Graphics Card';
             }
         }
 
-        // 基于性能特征进一步分析
+        // Further analysis based on performance features
         if (fingerprint.performance) {
             const { simpleRender, complexRender } = fingerprint.performance;
 
             if (simpleRender < 5 && complexRender < 10) {
-                evidence.push('高性能GPU特征');
+                evidence.push('High-performance GPU features');
                 confidence = Math.min(confidence + 10, 95);
             } else if (simpleRender > 20 || complexRender > 50) {
-                evidence.push('集成显卡特征');
-                if (model === '未知GPU') {
-                    model = '集成显卡';
+                evidence.push('Integrated graphics characteristics');
+                if (model === 'UnknownGPU') {
+                    model = 'Integrated Graphics';
                     confidence = 70;
                 }
             }
         }
 
-        // 基于扩展支持分析
+        // Analysis based on extension support
         if (fingerprint.extensions && fingerprint.extensions.count > 25) {
-            evidence.push('丰富的扩展支持');
+            evidence.push('Rich extension support');
             confidence = Math.min(confidence + 5, 95);
         }
 
@@ -644,14 +644,14 @@ class WebGLFingerprinter {
             canvasVariants: fingerprint.canvasVariants || {}
         };
 
-        // 将归一化后的厂商信息直接附加到源 fingerprint，方便后续逻辑复用
+        // Attach normalized vendor information directly to source fingerprint for subsequent logic reuse
         fingerprint.normalizedVendor = normalizedVendor;
 
         return analysis;
     }
 
     /**
-     * 对 WebGL 返回的厂商/渲染器字符串进行归一化，方便后续数据库匹配
+     * Normalize vendor/renderer strings returned by WebGL for subsequent database matching
      */
     _normalizeVendor(renderer, vendor) {
         const combined = `${renderer || ''} ${vendor || ''}`.toLowerCase();
@@ -668,7 +668,7 @@ class WebGLFingerprinter {
     }
 
     /**
-     * 清理资源
+     * Cleanup resources
      */
     cleanup() {
         if (this.canvas && this.canvas.parentNode) {
@@ -680,7 +680,7 @@ class WebGLFingerprinter {
     }
 }
 
-// 导出模块
+// Export module
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = WebGLFingerprinter;
 } else if (typeof window !== 'undefined') {

@@ -1,5 +1,5 @@
-// 共享的WASM初始化和工具函数
-// 共享的WASM初始化和工具函数
+// Shared WASM initialization and utility functions
+// Shared WASM initialization and utility functions
 class WASMFingerprint {
     constructor() {
         this.wasmModule = null;
@@ -20,7 +20,7 @@ class WASMFingerprint {
         }
     }
 
-    // 高精度计时的内存测试函数
+    // High-precision timing memory test function
     timedTest(testFunc, ...args) {
         const startTime = performance.now();
         const result = testFunc(...args);
@@ -31,7 +31,7 @@ class WASMFingerprint {
         };
     }
 
-    // 内存访问测试（自适应计时，去抖动）
+    // Memory access test (adaptive timing, debounce)
     async runMemoryTests(sizes = [16, 32, 64, 256], baseIterations = 200, targetRsd = 0.07) {
         const Module = await this.initWASM();
         const results = {};
@@ -41,7 +41,7 @@ class WASMFingerprint {
             const sorted = [...arr].sort((a, b) => a - b);
             const n = sorted.length;
             const median = n % 2 ? sorted[(n - 1) / 2] : (sorted[n / 2 - 1] + sorted[n / 2]) / 2;
-            const cut = Math.max(1, Math.floor(n * 0.15)); // 更强截尾15%
+            const cut = Math.max(1, Math.floor(n * 0.15)); // Stronger truncation 15%
             const trimmed = sorted.slice(cut, Math.max(cut + 1, n - cut));
             const mean = trimmed.reduce((a, b) => a + b, 0) / trimmed.length;
             const variance = trimmed.reduce((s, x) => s + Math.pow(x - mean, 2), 0) / Math.max(1, trimmed.length - 1);
@@ -56,7 +56,7 @@ class WASMFingerprint {
         });
 
         async function measurePair(size, iters) {
-            // 先做轻量缓存驱逐，减少上一次测试的影响
+            // Do lightweight cache eviction first to reduce impact from previous test
             try { Module._random_access_test(8192, 3); } catch(_e) {}
             const t0 = performance.now(); Module._sequential_access_test(size, iters); const t1 = performance.now();
             const seq = t1 - t0;
@@ -69,10 +69,10 @@ class WASMFingerprint {
         for (const size of sizes) {
             let iters = baseIterations;
             let pairs = [];
-            // 先做一次配对测量
+            // Do one paired measurement first
             pairs.push(await measurePair(size, iters));
 
-            // 放大工作量直到稳定且可测（上限防爆）
+            // Scale up workload until stable and measurable (upper limit to prevent explosion)
             const maxIters = 20000;
             let guard = 0;
             while (guard++ < 8) {
@@ -84,11 +84,11 @@ class WASMFingerprint {
                 const tooNoisy = (sStats.rsd > targetRsd || rStats.rsd > targetRsd);
                 if (!tooFast && !tooNoisy && pairs.length >= 5) break;
                 iters = Math.min(maxIters, Math.floor(iters * 1.8));
-                // 追加配对样本
+                // Append paired samples
                 pairs.push(await measurePair(size, iters));
             }
 
-            // 用“配对比值”的中位数，抗Safari抖动
+            // Use median of "paired ratios" to resist Safari jitter
             const ratioSamples = pairs.map(p => p.ratio).filter(x => isFinite(x) && x > 0);
             ratioSamples.sort((a,b)=>a-b);
             const ratioMedian = ratioSamples.length ? ratioSamples[Math.floor(ratioSamples.length/2)] : 'Too Fast';
@@ -105,7 +105,7 @@ class WASMFingerprint {
         return results;
     }
 
-    // 计算性能测试
+    // Calculation performance test
     async runComputeTests() {
         const Module = await this.initWASM();
 
@@ -117,11 +117,11 @@ class WASMFingerprint {
         };
     }
 
-    // 加载校准阈值（如存在）
+    // Load calibration thresholds (if exists)
     async loadCalibration() {
         if (this._calibration) return this._calibration;
         try {
-            // 浏览器环境尝试加载
+            // Browser environment try to load
             if (typeof fetch === 'function') {
                 const res = await fetch('./docs/device-database/calibration.json', { cache: 'no-store' });
                 if (res.ok) {
@@ -137,7 +137,7 @@ class WASMFingerprint {
         return null;
     }
 
-    // 测量步长访问时间（毫秒，稳健统计）
+    // Measure stride access time (milliseconds, robust statistics)
     async measureStrideTimes(sizeKB = 512, strides = [64, 128, 256, 512, 4096], iterations = 200) {
         const Module = await this.initWASM();
         const out = {};
@@ -145,7 +145,7 @@ class WASMFingerprint {
 
         for (const s of strides) {
             const times = [];
-            // 预热
+            // Warm-up
             try { Module._stride_access_test(sizeKB, s, Math.max(1, Math.floor(iterations/4))); } catch(_e) {}
             for (let i = 0; i < samplesPerStride; i++) {
                 const t0 = performance.now();
@@ -344,33 +344,33 @@ class WASMFingerprint {
         return this._simdBenchmark;
     }
 
-    // 生成设备指纹
+    // Generate device fingerprint
     async generateFingerprint() {
         const Module = await this.initWASM();
         const memoryResults = await this.runMemoryTests();
         const computeResults = await this.runComputeTests();
         const simdBenchmark = await this.measureSIMDCharacteristics(computeResults);
         const workerProfile = await this.profileWorkerCapacity();
-        // 低层结构探测
+        // Low-level structure detection
         let l1 = null, l2 = null, l3 = null, cacheLine = null, tlb = null;
         try { l1 = Module._l1_cache_size_detection ? Module._l1_cache_size_detection(320) : null; } catch(_e) {}
         try { l2 = Module._l2_cache_size_detection ? Module._l2_cache_size_detection(20480) : null; } catch(_e) {}
         try { l3 = Module._l3_cache_size_detection ? Module._l3_cache_size_detection(64) : null; } catch(_e) {}
         try { cacheLine = Module._cache_line_size_detection ? Module._cache_line_size_detection() : null; } catch(_e) {}
         try { tlb = Module._tlb_size_detection ? Module._tlb_size_detection() : null; } catch(_e) {}
-        // 步长时间
+        // Stride time
         const strideTimes = await this.measureStrideTimes();
 
         const features = {};
 
-        // 内存特征
+        // Memory features
         for (const [size, data] of Object.entries(memoryResults)) {
             if (typeof data.ratio === 'number') {
                 features[`mem_ratio_${size}`] = data.ratio;
             }
         }
 
-        // 计算特征
+        // Calculation features
         features.float_precision = computeResults.float.result;
         features.integer_opt = computeResults.integer.result;
         features.vector_comp = computeResults.vector.result;
@@ -383,7 +383,7 @@ class WASMFingerprint {
         features.worker_latency_median = workerProfile.medianLatency;
         features.worker_latency_mean = workerProfile.meanLatency;
 
-        // 结构与步长
+        // Structure and stride
         features.l1_kb = l1;
         features.l2_kb = l2;
         features.l3_mb = l3;
@@ -391,7 +391,7 @@ class WASMFingerprint {
         features.tlb_entries = tlb;
         features.stride_ms = strideTimes;
 
-        // 派生指标
+        // Derived metrics
         const l1BandKeys = ['32KB','48KB','64KB'];
         const deepKeys = Object.keys(memoryResults).filter(k => parseInt(k) >= 256);
         const avg = (arr) => arr.length ? arr.reduce((a,b)=>a+b,0)/arr.length : null;
@@ -409,21 +409,21 @@ class WASMFingerprint {
         };
     }
 
-    // 简单哈希函数
+    // Simple hash function
     calculateHash(features) {
         const str = JSON.stringify(features);
         let hash = 0;
         for (let i = 0; i < str.length; i++) {
             const char = str.charCodeAt(i);
             hash = ((hash << 5) - hash) + char;
-            hash = hash & hash; // 转换为32位整数
+            hash = hash & hash; // Convert to 32-bit integer
         }
         return hash.toString(16);
     }
 
-    // CPU类型推测（仅基于WASM内存比例，完全独立）
+    // CPU type inference (only based on WASM memory ratio, completely independent)
     analyzeCPUType(fingerprint) {
-        // 从memoryResults分尺寸提取ratio
+        // Extract ratio by size from memoryResults
         const ratios = {};
         const entries = Object.entries(fingerprint.memoryResults || {});
         for (const [k, v] of entries) {
@@ -440,38 +440,38 @@ class WASMFingerprint {
             return arr.reduce((a, b) => a + b, 0) / arr.length;
         }
 
-        const l1Band = avg([32, 48, 64]); // 32–64KB 近似L1
+        const l1Band = avg([32, 48, 64]); // 32–64KB Approximate L1
         const deepBand = avg(Object.keys(ratios).map(Number).filter(x => x >= 256));
         const overall = avg(Object.keys(ratios).map(Number));
 
-        // 阈值可由校准流程覆盖，这里提供保底默认
+        // Thresholds can be overridden by calibration process, provide fallback defaults here
         const isAppleish = (x) => !isNaN(x) && x >= 0.5 && x < 1.6;
         const isIntellish = (x) => !isNaN(x) && x >= 1.6 && x <= 2.5;
         const isAMDish = (x) => !isNaN(x) && x > 2.5;
 
-        let family = '未知架构';
+        let family = 'Unknown Architecture';
         let confidence = 0;
         const evidence = [];
 
-        // 以L1段为主，深层段辅助；再用厂商提示加权
+        // Use L1 band as primary, deep band as auxiliary; then weight with vendor hints
         if (isAppleish(l1Band) && (isAppleish(overall) || isAppleish(deepBand))) {
             family = 'Apple Silicon';
             confidence = 80;
-            evidence.push(`L1比例=${l1Band?.toFixed?.(2)}`);
+            evidence.push(`L1 ratio=${l1Band?.toFixed?.(2)}`);
         } else if (isIntellish(l1Band) || isIntellish(overall)) {
-            family = 'Intel/高性能桌面CPU';
+            family = 'Intel/High-Performance Desktop CPU';
             confidence = 65;
-            evidence.push(`L1比例=${l1Band?.toFixed?.(2)}`);
+            evidence.push(`L1 ratio=${l1Band?.toFixed?.(2)}`);
         } else if (isAMDish(overall) || isAMDish(deepBand)) {
-            family = 'AMD/主流CPU';
+            family = 'AMD/Mainstream CPU';
             confidence = 60;
-            evidence.push(`深层比例=${deepBand?.toFixed?.(2)}`);
+            evidence.push(`Deep ratio=${deepBand?.toFixed?.(2)}`);
         } else if (!isNaN(overall)) {
-            family = '标准计算设备';
+            family = 'Standard Computing Device';
             confidence = 50;
-            evidence.push(`整体比例=${overall?.toFixed?.(2)}`);
+            evidence.push(`Overall Ratio=${overall?.toFixed?.(2)}`);
         } else {
-            family = '执行太快或数据不足';
+            family = 'Execution too fast or insufficient data';
             confidence = 30;
         }
 
@@ -479,12 +479,12 @@ class WASMFingerprint {
         return { family, confidence, evidence, l1Band, deepBand, overall };
     }
 
-    // WASM细分分类（家族/代际/档位），可使用 calibration.json（可选）
+    // WASM subdivision classification (family/generation/tier), can use calibration.json (optional)
     async classifyWASM(fingerprint) {
         const cal = await this.loadCalibration();
         const f = fingerprint?.features || {};
 
-        // 基础特征
+        // Basic features
         const l1kb = +f.l1_kb || null;
         const l2kb = +f.l2_kb || null;
         const l3mb = +f.l3_mb || null;
@@ -499,22 +499,22 @@ class WASMFingerprint {
             : null;
         const simdSupported = !!f.simd_supported;
 
-        // 无校准时的保底规则（简化，待样本微调）
+        // Fallback rules without calibration (simplified, awaiting sample fine-tuning)
         const evidence = [];
         let family = 'Unknown', generation = null, tier = null, confidence = 50;
 
         const isBetween = (x, a, b) => typeof x==='number' && x>=a && x<=b;
 
-        // 粗判家族
+        // Rough family determination
         if (typeof l1Band === 'number' && l1Band < 1.6 && typeof deepBand === 'number' && deepBand < 1.6) {
-            family = 'Apple'; evidence.push('L1/深层比例均低'); confidence += 10;
+            family = 'Apple'; evidence.push('Both L1/Deep ratio are low'); confidence += 10;
         } else if (typeof overall === 'number' && overall > 2.4) {
-            family = 'AMD/ARM-like'; evidence.push('整体比例偏高');
+            family = 'AMD/ARM-like'; evidence.push('Overall Ratio on high side');
         } else if (typeof overall === 'number') {
-            family = 'Intel/AMD-like'; evidence.push('整体比例中等');
+            family = 'Intel/AMD-like'; evidence.push('Overall Ratio medium');
         }
 
-        // Apple 细分（基于结构）
+        // Apple subdivision (based on structure)
         if (family === 'Apple') {
             if (isBetween(l1kb, 180, 200)) { generation = 'M4'; evidence.push(`L1≈${l1kb}KB`); confidence += 10; }
             else if (isBetween(l1kb, 120, 140)) { generation = 'M1/M2/M3'; evidence.push(`L1≈${l1kb}KB`); }
@@ -522,23 +522,23 @@ class WASMFingerprint {
             if (l2kb && l2kb >= 12000) { tier = 'Pro/Max'; evidence.push(`L2≈${l2kb}KB`); confidence += 5; }
             else if (l2kb && l2kb >= 6000) { tier = 'Base/Pro'; evidence.push(`L2≈${l2kb}KB`); }
 
-            // 如果 L2 探测偏保守，使用 4MB 比例作为 Pro/Max 提示
+            // If L2 detection is conservative, use 4MB ratio as Pro/Max hint
             const mr = fingerprint?.memoryResults || {};
             const ratio4m = mr['4096KB']?.ratio;
             if (typeof ratio4m === 'number' && ratio4m >= 1.60) {
                 if (!tier) tier = 'Pro/Max';
-                evidence.push(`4MB比例=${ratio4m.toFixed(3)} 提示更高档位`);
+                evidence.push(`4MB Ratio=${ratio4m.toFixed(3)} indicates higher tier`);
                 confidence += 5;
             }
 
             if (logicalCores && logicalCores >= 12) {
                 if (!tier) tier = 'Pro/Max';
                 confidence += 5;
-                evidence.push(`并发核心≈${logicalCores} 显示高端Apple芯片`);
+                evidence.push(`Concurrent Cores≈${logicalCores} indicates high-end Apple chip`);
             }
         }
 
-        // Intel/AMD 细分（非常粗，等待校准样本细化）
+        // Intel/AMD subdivision (very rough, awaiting calibration sample refinement)
         if (family !== 'Apple') {
             if (l3mb && l3mb >= 24) { tier = 'Desktop-High'; evidence.push(`L3≈${l3mb}MB`); }
             else if (l3mb && l3mb >= 12) { tier = 'Desktop/Mobile-High'; evidence.push(`L3≈${l3mb}MB`); }
@@ -548,14 +548,14 @@ class WASMFingerprint {
             if (logicalCores && logicalCores >= 16) {
                 tier = tier || 'Desktop-High';
                 confidence += 5;
-                evidence.push(`并发核心≈${logicalCores} 显示桌面旗舰`);
+                evidence.push(`Concurrent Cores≈${logicalCores} indicates desktop flagship`);
             } else if (logicalCores && logicalCores >= 8 && !tier) {
                 tier = 'Performance';
-                evidence.push(`并发核心≈${logicalCores}`);
+                evidence.push(`Concurrent Cores≈${logicalCores}`);
             }
         }
 
-        // 若存在校准文件，使用校准分数覆盖家族判断
+        // If calibration file exists, use calibration score to override family determination
         const bands = cal?.bands || null;
         if (bands && Object.keys(bands).length) {
             const scoreOf = (val, band, w) => {
@@ -577,9 +577,9 @@ class WASMFingerprint {
                 scores[key] = s;
             }
             const best = Object.entries(scores).sort((a,b)=>b[1]-a[1])[0];
-            if (best && best[1] > 0.05) { // 有一定匹配度
+            if (best && best[1] > 0.05) { // Have some matching degree
                 const label = best[0];
-                // 支持细分标签：apple_m4_pro → family=apple, generation=m4, tier=pro
+                // Support subdivision labels：apple_m4_pro → family=apple, generation=m4, tier=pro
                 const parts = label.split('_');
                 family = parts[0].toUpperCase();
                 generation = parts[1]?.toUpperCase?.() || generation;
@@ -589,26 +589,26 @@ class WASMFingerprint {
             }
         }
 
-        // 预取器效率加分：使用 stride_ms 推断（small/large）
+        // Prefetcher efficiency bonus: infer using stride_ms (small/large)
         const stride = f.stride_ms || {};
         const t64 = typeof stride[64] === 'number' ? stride[64] : null;
         const t4k = typeof stride[4096] === 'number' ? stride[4096] : null;
         if (typeof deepBand === 'number' && t64 && t4k && t64 > 0 && t4k > 0) {
-            const prefetchEff = t64 / t4k; // 与页面展示保持一致
+            const prefetchEff = t64 / t4k; // Consistent with page display
             if (deepBand >= 1.45 && deepBand <= 1.70 && prefetchEff >= 0.3 && prefetchEff <= 0.8) {
                 confidence = Math.min(95, confidence + 10);
-                evidence.push(`深层比例=${deepBand.toFixed(3)} & 预取效率=${prefetchEff.toFixed(2)} 符合M4系特征`);
+                evidence.push(`Deep ratio=${deepBand.toFixed(3)} & Prefetch efficiency=${prefetchEff.toFixed(2)} Matches M4 series characteristics`);
                 if (family === 'Apple' && !tier) tier = 'Pro/Max';
             }
         }
 
         if (simdSupported) {
             confidence = Math.min(95, confidence + 3);
-            evidence.push('检测到WASM SIMD扩展');
+            evidence.push('WASM SIMD extension detected');
         }
 
         if (workerCap && workerCap >= 12) {
-            evidence.push(`Worker并发上限≈${workerCap}`);
+            evidence.push(`Worker concurrency limit≈${workerCap}`);
             if (!logicalCores && workerCap >= 12) {
                 confidence += 2;
             }
@@ -625,5 +625,5 @@ class WASMFingerprint {
     }
 }
 
-// 全局实例
+// Global instance
 window.wasmFingerprint = new WASMFingerprint();
