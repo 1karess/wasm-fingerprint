@@ -80,6 +80,7 @@
         <h2>Testing and Diagnostic Tools</h2>
         <button onclick="runValidationTests()">WASM Verification Test</button>
         <button onclick="runDiagnostics()">System Diagnosis</button>
+        <button onclick="testCPUCoreTypes()" style="background: #1f6feb;">🧵 Test CPU Core Types (P/E Cores)</button>
     </div>
 
     <div id="output" class="results"></div>
@@ -2531,8 +2532,158 @@
             addResult('Testing and Diagnostic Tools:', 'enhancement');
             addResult('   WASM Verification Test - Verify basic functionality', 'enhancement');
             addResult('   System Diagnosis - Deep analysis of execution environment', 'enhancement');
+            addResult('   Test CPU Core Types - Detect P-cores vs E-cores', 'enhancement');
             addResult('Suggested test order: WASM CPU Detection → Triple Detection → Complete Analysis', 'enhancement');
         };
+
+        async function testCPUCoreTypes() {
+            try {
+                addResult('=== CPU Core Type Detection (P-cores vs E-cores) ===', 'enhancement');
+                await ensureCommonLoaded();
+                
+                const wasmHelper = window.wasmFingerprint;
+                if (!wasmHelper || typeof wasmHelper.profileWorkerPerformance !== 'function') {
+                    throw new Error('WASM helper or profileWorkerPerformance method not available');
+                }
+
+                addResult('Starting Worker performance profiling...', 'cpu-info');
+                addResult('This test creates multiple Workers to run compute-intensive tasks', 'cpu-info');
+                addResult('and analyzes performance distribution to identify P-cores and E-cores.', 'cpu-info');
+                addResult('Please wait, this may take 10-30 seconds...', 'enhancement');
+
+                const startTime = performance.now();
+                const profile = await wasmHelper.profileWorkerPerformance(24);
+                const endTime = performance.now();
+                const duration = ((endTime - startTime) / 1000).toFixed(2);
+
+                if (!profile.available) {
+                    addResult(`❌ Core type detection failed: ${profile.failureReason || 'Unknown error'}`, 'limitation');
+                    if (profile.hardwareConcurrency) {
+                        addResult(`   Hardware concurrency: ${profile.hardwareConcurrency} cores`, 'cpu-info');
+                    }
+                    return;
+                }
+
+                addResult(`✅ Worker performance profiling completed in ${duration}s`, 'cpu-info');
+                addResult('', 'cpu-info');
+
+                // Display basic information
+                addResult('📊 Basic Information:', 'enhancement');
+                addResult(`   Hardware Concurrency: ${profile.hardwareConcurrency} logical cores`, 'cpu-info');
+                addResult(`   Workers Tested: ${profile.totalWorkers}`, 'cpu-info');
+                addResult('', 'cpu-info');
+
+                // Display core type analysis
+                if (profile.analysis) {
+                    const analysis = profile.analysis;
+                    addResult('🧵 Core Type Analysis:', 'enhancement');
+                    addResult(`   Performance Cores (P-cores): ${analysis.pCoreCount}`, 'cpu-info');
+                    addResult(`   Efficiency Cores (E-cores): ${analysis.eCoreCount}`, 'cpu-info');
+                    if (analysis.rawPCoreCount && analysis.rawPCoreCount !== analysis.pCoreCount) {
+                        addResult(`   (Raw detection: ${analysis.rawPCoreCount}P + ${analysis.rawECoreCount}E, scaled to hardware concurrency)`, 'enhancement');
+                    }
+                    addResult(`   Performance Gap: ${analysis.performanceGap.toFixed(2)}x (E-core is ${analysis.performanceGap.toFixed(2)}x slower)`, 'cpu-info');
+                    addResult(`   Detection Confidence: ${analysis.confidence}%`, analysis.confidence >= 70 ? 'cpu-info' : 'model-guess');
+                    addResult(`   Detection Method: ${analysis.method}`, 'cpu-info');
+                    
+                    if (analysis.pCoreMean && analysis.eCoreMean) {
+                        addResult(`   P-core Average Time: ${analysis.pCoreMean.toFixed(2)}ms`, 'cpu-info');
+                        addResult(`   E-core Average Time: ${analysis.eCoreMean.toFixed(2)}ms`, 'cpu-info');
+                    }
+                    if (analysis.scaleFactor && analysis.scaleFactor < 1.0) {
+                        addResult(`   Note: Tested ${profile.totalWorkers} workers on ${profile.hardwareConcurrency} cores (scale factor: ${analysis.scaleFactor.toFixed(2)})`, 'enhancement');
+                    }
+                    addResult('', 'cpu-info');
+
+                    // Device inference based on core configuration
+                    addResult('🔍 Device Inference:', 'enhancement');
+                    let deviceGuess = 'Unknown';
+                    let confidence = analysis.confidence;
+                    
+                    if (profile.hardwareConcurrency === 8) {
+                        if (analysis.pCoreCount === 4 && analysis.eCoreCount === 4) {
+                            deviceGuess = 'Apple M1 (4P+4E) or similar 8-core configuration';
+                            confidence = Math.min(95, confidence + 10);
+                        }
+                    } else if (profile.hardwareConcurrency === 10) {
+                        if (analysis.pCoreCount === 4 && analysis.eCoreCount === 6) {
+                            deviceGuess = 'Apple M4 (4P+6E)';
+                            confidence = Math.min(95, confidence + 15);
+                        } else if (analysis.pCoreCount === 6 && analysis.eCoreCount === 4) {
+                            deviceGuess = 'Apple M1 Pro (6P+4E) or similar';
+                            confidence = Math.min(95, confidence + 10);
+                        } else if (analysis.pCoreCount === 8 && analysis.eCoreCount === 2) {
+                            deviceGuess = 'Apple M1 Max (8P+2E)';
+                            confidence = Math.min(95, confidence + 10);
+                        }
+                    } else if (profile.hardwareConcurrency === 12) {
+                        if (analysis.pCoreCount === 6 && analysis.eCoreCount === 6) {
+                            deviceGuess = 'Apple M4 Pro (6P+6E)';
+                            confidence = Math.min(95, confidence + 15);
+                        } else if (analysis.pCoreCount === 8 && analysis.eCoreCount === 4) {
+                            deviceGuess = 'Apple M3 Pro (8P+4E) or similar 12-core configuration';
+                            confidence = Math.min(95, confidence + 10);
+                        } else if (analysis.pCoreCount >= 5 && analysis.pCoreCount <= 7 && 
+                                   analysis.eCoreCount >= 5 && analysis.eCoreCount <= 7) {
+                            // Close to 6P+6E, likely M4 Pro
+                            deviceGuess = 'Apple M4 Pro (likely 6P+6E, detected as ' + 
+                                        analysis.pCoreCount + 'P+' + analysis.eCoreCount + 'E)';
+                            confidence = Math.min(90, confidence + 5);
+                        }
+                    } else if (profile.hardwareConcurrency === 14) {
+                        if (analysis.pCoreCount === 10 && analysis.eCoreCount === 4) {
+                            deviceGuess = 'Apple M4 Max (10P+4E)';
+                            confidence = Math.min(95, confidence + 15);
+                        }
+                    } else if (profile.hardwareConcurrency === 16) {
+                        if (analysis.pCoreCount === 12 && analysis.eCoreCount === 4) {
+                            deviceGuess = 'Apple M4 Max (12P+4E) or high-end configuration';
+                            confidence = Math.min(95, confidence + 15);
+                        }
+                    }
+
+                    addResult(`   Inferred Device: ${deviceGuess}`, 'model-guess');
+                    addResult(`   Inference Confidence: ${confidence}%`, confidence >= 70 ? 'model-guess' : 'limitation');
+                    addResult('', 'cpu-info');
+                }
+
+                // Display performance distribution
+                if (profile.results && profile.results.length > 0) {
+                    addResult('📈 Performance Distribution:', 'enhancement');
+                    const sortedResults = [...profile.results].sort((a, b) => a.duration - b.duration);
+                    
+                    // Show top 5 fastest and slowest
+                    addResult('   Fastest Workers (likely P-cores):', 'cpu-info');
+                    sortedResults.slice(0, Math.min(5, sortedResults.length)).forEach((r, idx) => {
+                        addResult(`     Worker ${r.workerId}: ${r.duration.toFixed(2)}ms`, 'cpu-info');
+                    });
+                    
+                    if (sortedResults.length > 5) {
+                        addResult('   Slowest Workers (likely E-cores):', 'cpu-info');
+                        sortedResults.slice(-Math.min(5, sortedResults.length - 5)).reverse().forEach((r, idx) => {
+                            addResult(`     Worker ${r.workerId}: ${r.duration.toFixed(2)}ms`, 'cpu-info');
+                        });
+                    }
+                    addResult('', 'cpu-info');
+                }
+
+                // Display gaps analysis
+                if (profile.analysis && profile.analysis.gaps && profile.analysis.gaps.length > 0) {
+                    addResult('📊 Performance Gaps Analysis:', 'enhancement');
+                    profile.analysis.gaps.forEach((gap, idx) => {
+                        addResult(`   Gap ${idx + 1}: Worker ${gap.index - 1} → ${gap.index}: ${gap.gap.toFixed(2)}x (${gap.prevDuration.toFixed(2)}ms → ${gap.currDuration.toFixed(2)}ms)`, 'cpu-info');
+                    });
+                    addResult('', 'cpu-info');
+                }
+
+                addResult('✅ Core type detection completed!', 'cpu-info');
+                addResult('Note: Results may vary based on system load, temperature, and power state.', 'enhancement');
+
+            } catch (error) {
+                addResult(`❌ Core type detection failed: ${error.message}`, 'limitation');
+                console.error('Core type detection error:', error);
+            }
+        }
     </script>
 </body>
 </html>
