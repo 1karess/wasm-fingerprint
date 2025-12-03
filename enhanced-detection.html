@@ -2640,8 +2640,13 @@
                     
                     if (profile.hardwareConcurrency === 8) {
                         if (analysis.pCoreCount === 4 && analysis.eCoreCount === 4) {
-                            deviceGuess = 'Apple M1 (4P+4E) or similar 8-core configuration';
+                            // M1, M2, M3 all have 4P+4E configuration
+                            // Need additional features to distinguish (L1 cache, memory ratio, etc.)
+                            // For now, show as M1/M2/M3 series
+                            deviceGuess = 'Apple M1/M2/M3 (4P+4E) - 8-core configuration';
                             confidence = Math.min(95, confidence + 10);
+                            addResult('   Note: M1, M2, and M3 all have 4P+4E configuration.', 'enhancement');
+                            addResult('   Run "WASM CPU Deep Analysis" for more detailed identification (L1 cache, memory ratio).', 'enhancement');
                         }
                     } else if (profile.hardwareConcurrency === 10) {
                         if (analysis.pCoreCount === 4 && analysis.eCoreCount === 6) {
