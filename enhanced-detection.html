@@ -81,6 +81,7 @@
         <button onclick="runValidationTests()">WASM Verification Test</button>
         <button onclick="runDiagnostics()">System Diagnosis</button>
         <button onclick="testCPUCoreTypes()" style="background: #1f6feb;">🧵 Test CPU Core Types (P/E Cores)</button>
+        <button onclick="runComprehensiveIdentification()" style="background: #7c3aed;">🔍 Comprehensive Device Identification (All Features)</button>
     </div>
 
     <div id="output" class="results"></div>
@@ -2725,6 +2726,224 @@
             } catch (error) {
                 addResult(`❌ Core type detection failed: ${error.message}`, 'limitation');
                 console.error('Core type detection error:', error);
+            }
+        }
+
+        async function runComprehensiveIdentification() {
+            try {
+                addResult('=== 🔍 Comprehensive Device Identification (All Features) ===', 'enhancement');
+                addResult('Collecting all available device features for accurate identification...', 'cpu-info');
+                addResult('This includes: CPU cores, L1 cache, memory ratio, GPU features, and performance metrics.', 'cpu-info');
+                addResult('', 'cpu-info');
+
+                await initWASM();
+                await ensureCommonLoaded();
+
+                const wasmHelper = window.wasmFingerprint;
+                if (!wasmHelper) {
+                    throw new Error('WASM helper not available');
+                }
+
+                // 1. Collect core information
+                addResult('📊 Step 1: Collecting CPU core information...', 'enhancement');
+                let coreInfo = null;
+                try {
+                    const coreProfile = await wasmHelper.profileWorkerPerformance(24);
+                    if (coreProfile.available && coreProfile.analysis) {
+                        coreInfo = {
+                            p: coreProfile.analysis.pCoreCount,
+                            e: coreProfile.analysis.eCoreCount,
+                            total: coreProfile.hardwareConcurrency
+                        };
+                        addResult(`   ✅ Detected: ${coreInfo.p}P + ${coreInfo.e}E = ${coreInfo.total} cores`, 'cpu-info');
+                    }
+                } catch (e) {
+                    addResult(`   ⚠️ Core detection failed: ${e.message}`, 'limitation');
+                }
+
+                // 2. Collect WASM fingerprint (includes L1 cache, memory ratio, etc.)
+                addResult('📊 Step 2: Collecting WASM fingerprint (L1 cache, memory ratio)...', 'enhancement');
+                const wasmFingerprint = await wasmHelper.generateFingerprint();
+                const l1CacheKB = wasmFingerprint.structure?.l1_kb;
+                const memoryRatio = wasmFingerprint.features?.mem_ratio_l1_band || 
+                                   wasmFingerprint.features?.mem_ratio_32KB ||
+                                   wasmFingerprint.features?.mem_ratio_64KB;
+                const memoryRatioL1 = wasmFingerprint.features?.mem_ratio_l1_band;
+                const memoryRatioDeep = wasmFingerprint.features?.mem_ratio_deep;
+                const computePerformance = {
+                    float: wasmFingerprint.computeResults?.float?.time,
+                    integer: wasmFingerprint.computeResults?.integer?.time,
+                    vector: wasmFingerprint.computeResults?.vector?.time
+                };
+
+                if (l1CacheKB) {
+                    addResult(`   ✅ L1 Cache: ${l1CacheKB}KB`, 'cpu-info');
+                }
+                if (memoryRatio) {
+                    addResult(`   ✅ Memory Ratio: ${memoryRatio.toFixed(3)}`, 'cpu-info');
+                }
+
+                // 3. Collect GPU information
+                addResult('📊 Step 3: Collecting GPU information...', 'enhancement');
+                let webglAnalysis = null;
+                let webgpuAnalysis = null;
+                
+                try {
+                    const webglFP = new WebGLFingerprinter();
+                    await webglFP.initialize();
+                    const webglFingerprint = await webglFP.generateFingerprint();
+                    if (webglFingerprint) {
+                        webglAnalysis = webglFP.analyzeGPUModel(webglFingerprint);
+                        addResult(`   ✅ WebGL: ${webglAnalysis.model} (${webglAnalysis.confidence}%)`, 'cpu-info');
+                    }
+                    webglFP.cleanup();
+                } catch (e) {
+                    addResult(`   ⚠️ WebGL detection failed: ${e.message}`, 'limitation');
+                }
+
+                try {
+                    const webgpuFP = new WebGPUFingerprinter();
+                    await webgpuFP.initialize();
+                    const webgpuFingerprint = await webgpuFP.generateFingerprint();
+                    if (webgpuFingerprint) {
+                        webgpuAnalysis = webgpuFP.analyzeGPUModel(webgpuFingerprint);
+                        addResult(`   ✅ WebGPU: ${webgpuAnalysis.model} (${webgpuAnalysis.confidence}%)`, 'cpu-info');
+                    }
+                    webgpuFP.cleanup();
+                } catch (e) {
+                    addResult(`   ⚠️ WebGPU detection failed: ${e.message}`, 'limitation');
+                }
+
+                // 4. Collect battery status (if available)
+                addResult('📊 Step 4: Collecting environment information...', 'enhancement');
+                let batteryStatus = null;
+                try {
+                    if ('getBattery' in navigator) {
+                        const battery = await navigator.getBattery();
+                        batteryStatus = {
+                            charging: battery.charging,
+                            level: battery.level
+                        };
+                        addResult(`   ✅ Battery: ${batteryStatus.charging ? 'Charging' : 'Not charging'} (${(batteryStatus.level * 100).toFixed(0)}%)`, 'cpu-info');
+                    } else {
+                        addResult('   ⚠️ Battery API not available', 'limitation');
+                    }
+                } catch (e) {
+                    addResult(`   ⚠️ Battery detection failed: ${e.message}`, 'limitation');
+                }
+
+                // 5. Measure performance stability (infer temperature)
+                addResult('📊 Step 5: Measuring performance stability...', 'enhancement');
+                let performanceStability = null;
+                try {
+                    const stabilityTests = [];
+                    for (let i = 0; i < 5; i++) {
+                        const start = performance.now();
+                        await wasmHelper.runComputeTests();
+                        const end = performance.now();
+                        stabilityTests.push(end - start);
+                        await new Promise(resolve => setTimeout(resolve, 100));
+                    }
+                    const mean = stabilityTests.reduce((a, b) => a + b) / stabilityTests.length;
+                    const variance = stabilityTests.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / stabilityTests.length;
+                    const stdDev = Math.sqrt(variance);
+                    const coefficientOfVariation = mean > 0 ? stdDev / mean : 0;
+                    
+                    performanceStability = {
+                        mean: mean,
+                        variance: coefficientOfVariation,
+                        stdDev: stdDev
+                    };
+                    addResult(`   ✅ Performance stability: CV=${coefficientOfVariation.toFixed(3)} ${coefficientOfVariation < 0.1 ? '(stable)' : coefficientOfVariation < 0.2 ? '(moderate)' : '(unstable, possible thermal throttling)'}`, 'cpu-info');
+                } catch (e) {
+                    addResult(`   ⚠️ Stability test failed: ${e.message}`, 'limitation');
+                }
+
+                // 6. Get device memory (if available)
+                const deviceMemory = typeof navigator !== 'undefined' && navigator.deviceMemory 
+                    ? navigator.deviceMemory 
+                    : null;
+                if (deviceMemory) {
+                    addResult(`   ✅ Device Memory: ${deviceMemory}GB`, 'cpu-info');
+                }
+
+                addResult('', 'cpu-info');
+                addResult('🔍 Step 6: Comprehensive device identification...', 'enhancement');
+
+                // 7. Comprehensive identification
+                if (typeof DeviceSignatureDatabase === 'undefined') {
+                    throw new Error('DeviceSignatureDatabase not loaded');
+                }
+
+                const deviceDatabase = new DeviceSignatureDatabase();
+                const comprehensiveFeatures = {
+                    cores: coreInfo,
+                    l1CacheKB: l1CacheKB,
+                    memoryRatio: memoryRatio,
+                    memoryRatioL1: memoryRatioL1,
+                    memoryRatioDeep: memoryRatioDeep,
+                    webglAnalysis: webglAnalysis,
+                    webgpuAnalysis: webgpuAnalysis,
+                    computePerformance: computePerformance,
+                    deviceMemory: deviceMemory,
+                    batteryStatus: batteryStatus,
+                    performanceStability: performanceStability
+                };
+
+                const identification = deviceDatabase.identifyDeviceComprehensive(comprehensiveFeatures);
+
+                // Display results
+                addResult('', 'cpu-info');
+                addResult('🎯 Identification Results:', 'enhancement');
+                addResult(`   Device Model: ${identification.deviceModel}`, 'model-guess');
+                addResult(`   Confidence: ${identification.confidence}%`, identification.confidence >= 85 ? 'cpu-info' : identification.confidence >= 70 ? 'model-guess' : 'limitation');
+                
+                if (identification.noiseAdjustedConfidence !== undefined) {
+                    addResult(`   Noise-Adjusted Confidence: ${identification.noiseAdjustedConfidence.toFixed(1)}%`, 'enhancement');
+                }
+
+                if (identification.noiseFactors) {
+                    addResult('', 'cpu-info');
+                    addResult('📊 Noise Factors:', 'enhancement');
+                    if (identification.noiseFactors.charging !== null) {
+                        addResult(`   Charging: ${identification.noiseFactors.charging ? 'Yes' : 'No'}`, 'cpu-info');
+                    }
+                    if (identification.noiseFactors.batteryLevel !== null) {
+                        addResult(`   Battery Level: ${(identification.noiseFactors.batteryLevel * 100).toFixed(0)}%`, 'cpu-info');
+                    }
+                    if (identification.noiseFactors.temperature !== 'unknown') {
+                        addResult(`   Temperature: ${identification.noiseFactors.temperature}`, 'cpu-info');
+                    }
+                    addResult(`   Noise Level: ${identification.noiseFactors.noiseLevel}`, identification.noiseFactors.noiseLevel === 'low' ? 'cpu-info' : 'limitation');
+                }
+
+                if (identification.evidence && identification.evidence.length > 0) {
+                    addResult('', 'cpu-info');
+                    addResult('📋 Evidence:', 'enhancement');
+                    identification.evidence.forEach(e => addResult(`   • ${e}`, 'cpu-info'));
+                }
+
+                if (identification.contradictions && identification.contradictions.length > 0) {
+                    addResult('', 'cpu-info');
+                    addResult('⚠️ Contradictions:', 'limitation');
+                    identification.contradictions.forEach(c => addResult(`   • ${c}`, 'limitation'));
+                }
+
+                if (identification.alternatives && identification.alternatives.length > 0) {
+                    addResult('', 'cpu-info');
+                    addResult('🔀 Alternative Matches:', 'enhancement');
+                    identification.alternatives.forEach((alt, idx) => {
+                        addResult(`   ${idx + 1}. ${alt.brand} ${alt.deviceName} (${alt.confidence.toFixed(1)}%)`, 'model-guess');
+                    });
+                }
+
+                addResult('', 'cpu-info');
+                addResult('✅ Comprehensive identification completed!', 'cpu-info');
+                addResult('Note: This identification uses all available features with noise filtering.', 'enhancement');
+
+            } catch (error) {
+                addResult(`❌ Comprehensive identification failed: ${error.message}`, 'limitation');
+                console.error('Comprehensive identification error:', error);
             }
         }
     </script>
