@@ -86,7 +86,7 @@
     <div id="output" class="results"></div>
 
     <script src="./build/wasm-fingerprint.js?v=20251111"></script>
-    <script src="./src/common.js?v=20251111"></script>
+    <script src="./src/common.js?v=20251112"></script>
     <script src="./src/webgl-detection.js?v=20251111"></script>
     <script src="./src/webgpu-detection.js?v=20251111"></script>
     <script src="./src/device-database.js?v=20251111"></script>
@@ -2541,9 +2541,47 @@
                 addResult('=== CPU Core Type Detection (P-cores vs E-cores) ===', 'enhancement');
                 await ensureCommonLoaded();
                 
+                // Wait a bit to ensure scripts are fully loaded
+                await new Promise(resolve => setTimeout(resolve, 100));
+                
                 const wasmHelper = window.wasmFingerprint;
-                if (!wasmHelper || typeof wasmHelper.profileWorkerPerformance !== 'function') {
-                    throw new Error('WASM helper or profileWorkerPerformance method not available');
+                
+                // Debug information
+                if (!wasmHelper) {
+                    addResult('⚠️ Debug: window.wasmFingerprint is not defined', 'limitation');
+                    addResult('   Trying to reload common.js...', 'enhancement');
+                    
+                    // Force reload common.js
+                    const script = document.createElement('script');
+                    script.src = `./src/common.js?v=${Date.now()}`;
+                    document.head.appendChild(script);
+                    
+                    await new Promise((resolve, reject) => {
+                        script.onload = () => {
+                            setTimeout(() => {
+                                const reloadedHelper = window.wasmFingerprint;
+                                if (reloadedHelper && typeof reloadedHelper.profileWorkerPerformance === 'function') {
+                                    addResult('✅ Successfully reloaded common.js', 'cpu-info');
+                                    resolve();
+                                } else {
+                                    reject(new Error('Failed to load profileWorkerPerformance method after reload'));
+                                }
+                            }, 200);
+                        };
+                        script.onerror = () => reject(new Error('Failed to reload common.js'));
+                        setTimeout(() => reject(new Error('Reload timeout')), 5000);
+                    });
+                }
+                
+                const finalHelper = window.wasmFingerprint;
+                if (!finalHelper) {
+                    throw new Error('WASM helper (window.wasmFingerprint) is not available');
+                }
+                
+                if (typeof finalHelper.profileWorkerPerformance !== 'function') {
+                    addResult('⚠️ Debug: profileWorkerPerformance method not found', 'limitation');
+                    addResult(`   Available methods: ${Object.getOwnPropertyNames(finalHelper).filter(k => typeof finalHelper[k] === 'function').join(', ')}`, 'limitation');
+                    throw new Error('profileWorkerPerformance method not available. Please refresh the page to clear cache.');
                 }
 
                 addResult('Starting Worker performance profiling...', 'cpu-info');
