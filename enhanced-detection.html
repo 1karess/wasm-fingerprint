@@ -127,9 +127,16 @@
                     const moduleConfig = {
                         locateFile: (path, scriptDirectory) => {
                             if (path.endsWith('.wasm')) {
-                                return scriptDirectory + path + '?v=' + timestamp;
+                                // scriptDirectory should be the directory of wasm-fingerprint.js (./build/)
+                                // If scriptDirectory is empty or doesn't contain 'build', use './build/'
+                                const baseDir = (scriptDirectory && scriptDirectory.includes('build')) 
+                                    ? scriptDirectory 
+                                    : './build/';
+                                // Ensure path doesn't already start with build/
+                                const wasmPath = path.startsWith('build/') ? path : 'build/' + path;
+                                return baseDir + wasmPath + '?v=' + timestamp;
                             }
-                            return scriptDirectory + path;
+                            return scriptDirectory ? (scriptDirectory + path) : path;
                         },
                         onRuntimeInitialized: function() {
                             if (resolved) return; // Prevent duplicate callbacks
