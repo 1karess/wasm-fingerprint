@@ -289,6 +289,445 @@ class WASMFingerprint {
         return this._workerProfile;
     }
 
+    /**
+     * Advanced Worker performance profiling to detect P-cores vs E-cores
+     * Uses compute-intensive tasks in multiple workers to identify performance clusters
+     */
+    async profileWorkerPerformance(maxProbe = 24) {
+        if (typeof Worker === 'undefined') {
+            return {
+                available: false,
+                failureReason: 'Worker API unavailable',
+                hardwareConcurrency: typeof navigator === 'object' ? navigator?.hardwareConcurrency ?? null : null
+            };
+        }
+
+        const hardwareConcurrency = typeof navigator === 'object' && typeof navigator?.hardwareConcurrency === 'number'
+            ? navigator.hardwareConcurrency
+            : null;
+
+        if (!hardwareConcurrency || hardwareConcurrency < 2) {
+            return {
+                available: false,
+                failureReason: 'Insufficient cores for P/E core detection',
+                hardwareConcurrency
+            };
+        }
+
+        // Create worker script that performs compute-intensive tasks
+        // Using pure JavaScript computation to avoid WASM loading complexity in workers
+        const workerScript = `
+            self.onmessage = function(evt) {
+                const data = evt.data;
+                if (data.type === 'compute') {
+                    const start = performance.now();
+                    const iterations = data.iterations || 50000;
+                    
+                    // Compute-intensive integer operations (similar to WASM integer_optimization_test)
+                    let result = 12345;
+                    for (let i = 1; i <= iterations; i++) {
+                        // Integer arithmetic operations
+                        result = (result * 3 + i) / 2;
+                        
+                        // Bitwise operations
+                        result = result ^ ((result << 1) ^ (result >> 1));
+                        
+                        // Conditional operations
+                        result += (i & 1) ? i : i / 2;
+                        
+                        // Prevent overflow
+                        if (result > 1000000 || result < -1000000) {
+                            result = (result % 1000000) + 1000;
+                        }
+                        if (result === 0) result = i + 1000;
+                    }
+                    
+                    // Additional floating-point computation to stress CPU
+                    let floatResult = 1.0;
+                    for (let i = 0; i < iterations / 10; i++) {
+                        floatResult = Math.sin(floatResult * 0.1) + Math.cos(floatResult * 0.1);
+                        floatResult = Math.sqrt(Math.abs(floatResult)) + 1.0;
+                        if (!isFinite(floatResult)) floatResult = 1.0;
+                    }
+                    
+                    const end = performance.now();
+                    const duration = end - start;
+                    
+                    self.postMessage({
+                        type: 'result',
+                        workerId: data.workerId,
+                        duration: duration,
+                        result: result,
+                        floatResult: floatResult,
+                        iterations: iterations
+                    });
+                } else if (data.type === 'stop') {
+                    self.postMessage({ type: 'stopped' });
+                    try { self.close(); } catch (e) {}
+                }
+            };
+        `;
+
+        const blob = new Blob([workerScript], { type: 'application/javascript' });
+        const workerUrl = URL.createObjectURL(blob);
+        const workers = [];
+        const performanceResults = [];
+        let failureReason = null;
+
+        const median = (arr) => {
+            if (!arr.length) return null;
+            const sorted = [...arr].sort((a, b) => a - b);
+            const mid = Math.floor(sorted.length / 2);
+            return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+        };
+
+        const mean = (arr) => {
+            if (!arr.length) return null;
+            return arr.reduce((a, b) => a + b, 0) / arr.length;
+        };
+
+        const stdDev = (arr) => {
+            if (!arr.length) return null;
+            const m = mean(arr);
+            const variance = arr.reduce((sum, val) => sum + Math.pow(val - m, 2), 0) / arr.length;
+            return Math.sqrt(variance);
+        };
+
+        try {
+            // Create workers (test up to 2x hardware concurrency to ensure we exceed P-cores)
+            const numWorkers = Math.min(maxProbe, Math.max(hardwareConcurrency * 2, hardwareConcurrency + 4));
+            
+            for (let i = 0; i < numWorkers; i++) {
+                let worker;
+                try {
+                    worker = new Worker(workerUrl, { name: `perf-probe-${i}` });
+                } catch (err) {
+                    failureReason = err;
+                    break;
+                }
+                workers.push(worker);
+            }
+
+            // Start all workers simultaneously with compute tasks
+            const computePromises = workers.map((worker, index) => {
+                return new Promise((resolve) => {
+                    const timeout = setTimeout(() => {
+                        resolve({
+                            workerId: index,
+                            duration: null,
+                            error: 'Worker timeout'
+                        });
+                    }, 30000); // 30 second timeout
+
+                    worker.onmessage = (event) => {
+                        const data = event.data;
+                        if (data.type === 'result') {
+                            clearTimeout(timeout);
+                            resolve({
+                                workerId: data.workerId,
+                                duration: data.duration,
+                                result: data.result,
+                                iterations: data.iterations
+                            });
+                        } else if (data.type === 'error') {
+                            clearTimeout(timeout);
+                            resolve({
+                                workerId: data.workerId,
+                                duration: null,
+                                error: data.error
+                            });
+                        }
+                    };
+
+                    worker.onerror = (err) => {
+                        clearTimeout(timeout);
+                        resolve({
+                            workerId: index,
+                            duration: null,
+                            error: err.message || String(err)
+                        });
+                    };
+
+                    // Start compute task
+                    worker.postMessage({
+                        type: 'compute',
+                        workerId: index,
+                        iterations: 100000 // Increased workload for better differentiation
+                    });
+                });
+            });
+
+            const results = await Promise.all(computePromises);
+            
+            // Filter out errors and collect valid performance data
+            const validResults = results.filter(r => r.duration !== null && !r.error);
+            
+            if (validResults.length < 2) {
+                failureReason = 'Insufficient valid results for analysis';
+            } else {
+                // Sort by performance (duration - lower is better)
+                validResults.sort((a, b) => a.duration - b.duration);
+                
+                // Find performance inflection point (pass hardwareConcurrency for scaling)
+                const inflection = this._findPerformanceInflection(validResults, hardwareConcurrency);
+                
+                performanceResults.push(...validResults);
+                
+                return {
+                    available: true,
+                    hardwareConcurrency,
+                    totalWorkers: validResults.length,
+                    results: validResults,
+                    analysis: inflection,
+                    pCores: inflection.pCoreCount,
+                    eCores: inflection.eCoreCount,
+                    performanceGap: inflection.performanceGap,
+                    confidence: inflection.confidence
+                };
+            }
+        } catch (err) {
+            failureReason = err.message || String(err);
+        } finally {
+            // Cleanup workers
+            for (const worker of workers) {
+                try {
+                    worker.postMessage({ type: 'stop' });
+                } catch (_e) {}
+                try {
+                    worker.terminate();
+                } catch (_e) {}
+            }
+            URL.revokeObjectURL(workerUrl);
+        }
+
+        return {
+            available: false,
+            hardwareConcurrency,
+            failureReason: failureReason || 'Unknown error',
+            results: performanceResults
+        };
+    }
+
+    /**
+     * Find performance inflection point to separate P-cores from E-cores
+     * @param {Array} results - Performance results from workers
+     * @param {Number} hardwareConcurrency - Actual hardware core count
+     */
+    _findPerformanceInflection(results, hardwareConcurrency = null) {
+        if (results.length < 2) {
+            return {
+                pCoreCount: results.length,
+                eCoreCount: 0,
+                performanceGap: 1.0,
+                confidence: 0,
+                method: 'insufficient_data'
+            };
+        }
+
+        // Helper functions
+        const mean = (arr) => {
+            if (!arr.length) return null;
+            return arr.reduce((a, b) => a + b, 0) / arr.length;
+        };
+
+        const stdDev = (arr) => {
+            if (!arr.length) return null;
+            const m = mean(arr);
+            const variance = arr.reduce((sum, val) => sum + Math.pow(val - m, 2), 0) / arr.length;
+            return Math.sqrt(variance);
+        };
+
+        // Calculate performance gaps between adjacent workers
+        const gaps = [];
+        for (let i = 1; i < results.length; i++) {
+            const gap = results[i].duration / results[i - 1].duration;
+            gaps.push({
+                index: i,
+                gap: gap,
+                prevDuration: results[i - 1].duration,
+                currDuration: results[i].duration
+            });
+        }
+
+        // Find the largest performance jump (likely P-core to E-core transition)
+        gaps.sort((a, b) => b.gap - a.gap);
+        const maxGap = gaps[0];
+        
+        // Use threshold: gap must be at least 1.3x to be considered significant
+        const significantGap = maxGap.gap >= 1.3;
+        
+        let inflectionIndex = significantGap ? maxGap.index : Math.floor(results.length / 2);
+        
+        // Alternative method: K-means clustering (simple 2-cluster)
+        const durations = results.map(r => r.duration);
+        const sortedDurations = [...durations].sort((a, b) => a - b);
+        const midPoint = sortedDurations[Math.floor(sortedDurations.length / 2)];
+        
+        const fastCluster = results.filter(r => r.duration <= midPoint);
+        const slowCluster = results.filter(r => r.duration > midPoint);
+        
+        // Use clustering if it gives a clearer separation
+        if (slowCluster.length > 0 && fastCluster.length > 0) {
+            const clusterGap = mean(slowCluster.map(r => r.duration)) / mean(fastCluster.map(r => r.duration));
+            if (clusterGap >= 1.25) {
+                inflectionIndex = fastCluster.length;
+            }
+        }
+
+        const pCoreResults = results.slice(0, inflectionIndex);
+        const eCoreResults = results.slice(inflectionIndex);
+
+        const pCoreMean = mean(pCoreResults.map(r => r.duration));
+        const eCoreMean = eCoreResults.length > 0 ? mean(eCoreResults.map(r => r.duration)) : pCoreMean;
+        const performanceGap = eCoreMean / pCoreMean;
+
+        // IMPORTANT: Scale down to hardware concurrency if we tested more workers
+        // Multiple workers may be scheduled on the same physical core
+        // We need to infer the actual physical core count, not worker count
+        const actualHardwareConcurrency = hardwareConcurrency || 
+            (typeof navigator !== 'undefined' && navigator.hardwareConcurrency 
+                ? navigator.hardwareConcurrency 
+                : results.length);
+        
+        // If we have more results than hardware cores, we need to scale proportionally
+        let scaledPCoreCount = pCoreResults.length;
+        let scaledECoreCount = eCoreResults.length;
+        
+        if (results.length > actualHardwareConcurrency) {
+            // Scale proportionally to hardware concurrency
+            const scaleFactor = actualHardwareConcurrency / results.length;
+            const rawScaledP = pCoreResults.length * scaleFactor;
+            const rawScaledE = eCoreResults.length * scaleFactor;
+            
+            // Use more sophisticated rounding: try to preserve the ratio while ensuring sum equals hardware concurrency
+            // First, try rounding both
+            scaledPCoreCount = Math.round(rawScaledP);
+            scaledECoreCount = Math.round(rawScaledE);
+            
+            // If sum doesn't match, adjust the one with larger fractional part
+            const sum = scaledPCoreCount + scaledECoreCount;
+            if (sum !== actualHardwareConcurrency) {
+                const pFractional = rawScaledP - Math.floor(rawScaledP);
+                const eFractional = rawScaledE - Math.floor(rawScaledE);
+                
+                if (sum < actualHardwareConcurrency) {
+                    // Need to add cores - add to the one with larger fractional part
+                    if (pFractional >= eFractional) {
+                        scaledPCoreCount = Math.ceil(rawScaledP);
+                        scaledECoreCount = actualHardwareConcurrency - scaledPCoreCount;
+                    } else {
+                        scaledECoreCount = Math.ceil(rawScaledE);
+                        scaledPCoreCount = actualHardwareConcurrency - scaledECoreCount;
+                    }
+                } else {
+                    // Need to remove cores - remove from the one with smaller fractional part
+                    if (pFractional <= eFractional) {
+                        scaledPCoreCount = Math.floor(rawScaledP);
+                        scaledECoreCount = actualHardwareConcurrency - scaledPCoreCount;
+                    } else {
+                        scaledECoreCount = Math.floor(rawScaledE);
+                        scaledPCoreCount = actualHardwareConcurrency - scaledECoreCount;
+                    }
+                }
+            }
+            
+            // Ensure we don't have invalid counts
+            if (scaledPCoreCount < 1) {
+                scaledPCoreCount = 1;
+                scaledECoreCount = actualHardwareConcurrency - 1;
+            }
+            if (scaledECoreCount < 0) {
+                scaledECoreCount = 0;
+                scaledPCoreCount = actualHardwareConcurrency;
+            }
+            if (scaledPCoreCount + scaledECoreCount !== actualHardwareConcurrency) {
+                // Final safety check: ensure sum is correct
+                scaledECoreCount = actualHardwareConcurrency - scaledPCoreCount;
+            }
+        } else {
+            // If we tested fewer or equal workers, use actual counts but cap at hardware concurrency
+            scaledPCoreCount = Math.min(pCoreResults.length, actualHardwareConcurrency);
+            scaledECoreCount = Math.min(eCoreResults.length, actualHardwareConcurrency - scaledPCoreCount);
+        }
+        
+        // Special handling for common Apple Silicon configurations
+        // If we're close to a known configuration, prefer that
+        if (actualHardwareConcurrency === 12) {
+            // M4 Pro is 6P+6E, M3 Pro is 8P+4E
+            // If we're close (within 1 core), prefer the balanced 6P+6E
+            if (scaledPCoreCount >= 5 && scaledPCoreCount <= 7 && 
+                scaledECoreCount >= 5 && scaledECoreCount <= 7) {
+                // Close to 6P+6E, prefer balanced configuration
+                if (Math.abs(scaledPCoreCount - 6) <= 1 && Math.abs(scaledECoreCount - 6) <= 1) {
+                    scaledPCoreCount = 6;
+                    scaledECoreCount = 6;
+                }
+            }
+        } else if (actualHardwareConcurrency === 10) {
+            // M4 is 4P+6E, M1 Pro is 6P+4E
+            if (scaledPCoreCount >= 3 && scaledPCoreCount <= 5 && 
+                scaledECoreCount >= 5 && scaledECoreCount <= 7) {
+                // Close to 4P+6E
+                if (Math.abs(scaledPCoreCount - 4) <= 1 && Math.abs(scaledECoreCount - 6) <= 1) {
+                    scaledPCoreCount = 4;
+                    scaledECoreCount = 6;
+                }
+            } else if (scaledPCoreCount >= 5 && scaledPCoreCount <= 7 && 
+                       scaledECoreCount >= 3 && scaledECoreCount <= 5) {
+                // Close to 6P+4E
+                if (Math.abs(scaledPCoreCount - 6) <= 1 && Math.abs(scaledECoreCount - 4) <= 1) {
+                    scaledPCoreCount = 6;
+                    scaledECoreCount = 4;
+                }
+            }
+        } else if (actualHardwareConcurrency === 8) {
+            // M1 is 4P+4E
+            if (scaledPCoreCount >= 3 && scaledPCoreCount <= 5 && 
+                scaledECoreCount >= 3 && scaledECoreCount <= 5) {
+                scaledPCoreCount = 4;
+                scaledECoreCount = 4;
+            }
+        }
+
+        // Calculate confidence based on gap size and cluster separation
+        let confidence = 0;
+        if (performanceGap >= 1.5) {
+            confidence = 85;
+        } else if (performanceGap >= 1.3) {
+            confidence = 70;
+        } else if (performanceGap >= 1.2) {
+            confidence = 55;
+        } else {
+            confidence = 40;
+        }
+
+        // Boost confidence if clusters are well separated
+        if (eCoreResults.length > 0) {
+            const pCoreStd = stdDev(pCoreResults.map(r => r.duration));
+            const eCoreStd = stdDev(eCoreResults.map(r => r.duration));
+            const separation = (eCoreMean - pCoreMean) / (pCoreStd + eCoreStd + 1e-6);
+            if (separation > 2.0) {
+                confidence = Math.min(95, confidence + 10);
+            }
+        }
+
+        return {
+            pCoreCount: scaledPCoreCount,  // Use scaled count based on hardware concurrency
+            eCoreCount: scaledECoreCount,  // Use scaled count based on hardware concurrency
+            rawPCoreCount: pCoreResults.length,  // Keep original for reference
+            rawECoreCount: eCoreResults.length,  // Keep original for reference
+            performanceGap: performanceGap,
+            confidence: confidence,
+            method: significantGap ? 'inflection_point' : 'clustering',
+            pCoreMean: pCoreMean,
+            eCoreMean: eCoreMean,
+            inflectionIndex: inflectionIndex,
+            gaps: gaps.slice(0, 3), // Top 3 gaps for analysis
+            hardwareConcurrency: actualHardwareConcurrency,
+            scaleFactor: results.length > actualHardwareConcurrency ? (actualHardwareConcurrency / results.length) : 1.0
+        };
+    }
+
     async detectSIMDSupport() {
         if (typeof this._simdSupport === 'boolean') {
             return this._simdSupport;
