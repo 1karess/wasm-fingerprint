@@ -2821,6 +2821,9 @@
                 addResult('Collecting all available device features for accurate identification...', 'cpu-info');
                 addResult('This includes: CPU cores, L1 cache, memory ratio, GPU features, and performance metrics.', 'cpu-info');
                 addResult('', 'cpu-info');
+                addResult('⚠️ Note: For best accuracy, close other applications (video players, games, etc.) before testing.', 'enhancement');
+                addResult('High system load may affect test results and identification accuracy.', 'enhancement');
+                addResult('', 'cpu-info');
 
                 await initWASM();
                 await ensureCommonLoaded();
@@ -3000,7 +3003,22 @@
                     if (identification.noiseFactors.temperature !== 'unknown') {
                         addResult(`   Temperature: ${identification.noiseFactors.temperature}`, 'cpu-info');
                     }
+                    if (identification.noiseFactors.systemLoad !== 'unknown') {
+                        const loadEmoji = identification.noiseFactors.systemLoad === 'high' ? '🔴' : 
+                                        identification.noiseFactors.systemLoad === 'medium' ? '🟡' : '🟢';
+                        addResult(`   System Load: ${loadEmoji} ${identification.noiseFactors.systemLoad}`, 
+                                identification.noiseFactors.systemLoad === 'low' ? 'cpu-info' : 'limitation');
+                    }
                     addResult(`   Noise Level: ${identification.noiseFactors.noiseLevel}`, identification.noiseFactors.noiseLevel === 'low' ? 'cpu-info' : 'limitation');
+                    
+                    // Show recommendations if any
+                    if (identification.noiseFactors.recommendations && identification.noiseFactors.recommendations.length > 0) {
+                        addResult('', 'cpu-info');
+                        addResult('💡 Recommendations:', 'enhancement');
+                        identification.noiseFactors.recommendations.forEach(rec => {
+                            addResult(`   • ${rec}`, 'limitation');
+                        });
+                    }
                 }
 
                 if (identification.evidence && identification.evidence.length > 0) {
