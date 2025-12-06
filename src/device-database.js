@@ -597,9 +597,18 @@ class DeviceSignatureDatabase {
         total += scores.webgpu * weights.webgpu;
         total += scores.performance * weights.performance;
 
-        // Apply contradiction penalty
+        // If core configuration matches perfectly, boost the score
+        // This ensures that accurate core detection can overcome L1 cache detection issues
+        if (scores.cores >= 35) {
+            total += 5; // Bonus for perfect core match
+        }
+
+        // Apply contradiction penalty (but reduce penalty if cores match perfectly)
         if (contradictions.length) {
-            total -= Math.min(20, contradictions.length * 5);
+            const penalty = scores.cores >= 35 
+                ? Math.min(10, contradictions.length * 3) // Reduced penalty if cores match
+                : Math.min(20, contradictions.length * 5); // Normal penalty
+            total -= penalty;
         }
 
         // Apply noise penalty
