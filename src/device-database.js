@@ -182,7 +182,7 @@ class DeviceSignatureDatabase {
                         architecture: "Apple Silicon",
                         cores: { p: 6, e: 6, total: 12 }, // or 8P+6E for 14-core
                         l1CacheKB: { min: 180, max: 200 },
-                        memoryRatio: { min: 0.95, max: 1.35 }, // Extended range for M4 Pro
+                        memoryRatio: { min: 0.95, max: 1.25 },
                         cacheProfile: "unified_memory_m4",
                         performanceClass: "ultra_high_performance"
                     },
@@ -491,48 +491,42 @@ class DeviceSignatureDatabase {
             const expectedRatio = profile.cpu.memoryRatio;
             const actualRatio = features.memoryRatio;
             
-            // Increase tolerance if noise level is high
+            // Increase tolerance if noise level is high, and for M4 series (which may have higher variance)
             const baseTolerance = 0.2;
             const noiseTolerance = noiseFactors.noiseLevel === 'high' ? 0.3 : 
                                   noiseFactors.noiseLevel === 'medium' ? 0.25 : baseTolerance;
             
-            const adjustedMin = expectedRatio.min - noiseTolerance;
-            const adjustedMax = expectedRatio.max + noiseTolerance;
+            // For M4 series, allow more tolerance due to higher performance variance
+            const isM4Series = profile.cpu.l1CacheKB && profile.cpu.l1CacheKB.min >= 180;
+            const extendedTolerance = isM4Series ? noiseTolerance + 0.15 : noiseTolerance;
             
-            if (actualRatio >= adjustedMin && actualRatio <= adjustedMax) {
-                // Calculate distance from the original range (not adjusted range)
-                let distance = 0;
-                if (actualRatio < expectedRatio.min) {
-                    distance = expectedRatio.min - actualRatio;
-                } else if (actualRatio > expectedRatio.max) {
-                    distance = actualRatio - expectedRatio.max;
-                }
-                
-                // Score based on how close to the original range
-                let score = 15;
-                if (distance > 0) {
-                    // Within tolerance but outside original range
-                    score = Math.max(8, 15 - distance * 10);
-                    details.memoryRatio.push(`Memory ratio match (with noise tolerance): ${actualRatio.toFixed(3)} (expected ${expectedRatio.min}-${expectedRatio.max}, adjusted ${adjustedMin.toFixed(2)}-${adjustedMax.toFixed(2)})`);
-                } else {
-                    // Within original range
-                    details.memoryRatio.push(`Memory ratio match: ${actualRatio.toFixed(3)} (expected ${expectedRatio.min}-${expectedRatio.max})`);
-                }
+            if (actualRatio >= expectedRatio.min - extendedTolerance && 
+                actualRatio <= expectedRatio.max + extendedTolerance) {
+                const distance = Math.min(
+                    Math.abs(actualRatio - expectedRatio.min),
+                    Math.abs(actualRatio - expectedRatio.max)
+                );
+                const score = distance <= 0.1 ? 15 : (15 - distance * 10);
                 scores.memoryRatio = Math.max(0, score);
+                details.memoryRatio.push(`Memory ratio match: ${actualRatio.toFixed(3)} (expected ${expectedRatio.min}-${expectedRatio.max}, tolerance: ${extendedTolerance.toFixed(2)})`);
             } else {
-                // Still check if it's very close (for M4 Pro, allow up to 1.35)
-                const extendedTolerance = noiseTolerance + 0.1;
-                if (actualRatio >= expectedRatio.min - extendedTolerance && 
-                    actualRatio <= expectedRatio.max + extendedTolerance) {
-                    const distance = Math.min(
-                        Math.abs(actualRatio - expectedRatio.min),
-                        Math.abs(actualRatio - expectedRatio.max)
-                    );
-                    const score = Math.max(5, 10 - distance * 5);
-                    scores.memoryRatio = score;
-                    details.memoryRatio.push(`Memory ratio close match (extended tolerance): ${actualRatio.toFixed(3)} (expected ${expectedRatio.min}-${expectedRatio.max})`);
+                // Even if outside range, give partial score if close
+                const distance = Math.min(
+                    Math.abs(actualRatio - expectedRatio.min),
+                    Math.abs(actualRatio - expectedRatio.max)
+                );
+                if (distance <= extendedTolerance + 0.1) {
+                    // Close enough to give partial score
+                    const partialScore = Math.max(0, 15 - (distance - extendedTolerance) * 20);
+                    scores.memoryRatio = partialScore;
+                    details.memoryRatio.push(`Memory ratio close match: ${actualRatio.toFixed(3)} (expected ${expectedRatio.min}-${expectedRatio.max}, distance: ${distance.toFixed(3)})`);
                 } else {
-                    contradictions.push(`Memory ratio mismatch: got ${actualRatio.toFixed(3)}, expected ${expectedRatio.min}-${expectedRatio.max}`);
+                    // Too far, but don't add contradiction if other features match well
+                    if (scores.cores < 30 && scores.l1Cache < 20) {
+                        contradictions.push(`Memory ratio mismatch: got ${actualRatio.toFixed(3)}, expected ${expectedRatio.min}-${expectedRatio.max}`);
+                    } else {
+                        details.memoryRatio.push(`Memory ratio slightly out of range: ${actualRatio.toFixed(3)} (expected ${expectedRatio.min}-${expectedRatio.max}), but other features match well`);
+                    }
                 }
             }
         }
