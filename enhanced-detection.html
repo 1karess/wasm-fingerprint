@@ -129,20 +129,59 @@
                             if (path.endsWith('.wasm')) {
                                 // scriptDirectory is the directory containing wasm-fingerprint.js
                                 // Emscripten automatically calculates it from the script's location
-                                // For "./build/wasm-fingerprint.js", scriptDirectory should be "./build/"
                                 let fullPath;
-                                if (scriptDirectory) {
-                                    // Ensure scriptDirectory ends with /
+                                
+                                // Debug: log the inputs
+                                console.log('[WASM locateFile]', { 
+                                    path, 
+                                    scriptDirectory, 
+                                    timestamp,
+                                    location: window.location.href,
+                                    pathname: window.location.pathname
+                                });
+                                
+                                // Try multiple fallback strategies
+                                if (scriptDirectory && scriptDirectory.trim() !== '') {
+                                    // Use the provided scriptDirectory
                                     const baseDir = scriptDirectory.endsWith('/') 
                                         ? scriptDirectory 
                                         : scriptDirectory + '/';
                                     fullPath = baseDir + path;
                                 } else {
-                                    // Fallback: assume build/ directory
-                                    fullPath = './build/' + path;
+                                    // Fallback 1: Try to find the script element
+                                    let scriptSrc = null;
+                                    const scripts = document.getElementsByTagName('script');
+                                    for (let script of scripts) {
+                                        if (script.src && script.src.includes('wasm-fingerprint.js')) {
+                                            scriptSrc = script.src;
+                                            break;
+                                        }
+                                    }
+                                    
+                                    if (scriptSrc) {
+                                        // Extract directory from script src
+                                        try {
+                                            const scriptUrl = new URL(scriptSrc, window.location.href);
+                                            const scriptDir = scriptUrl.pathname.substring(0, scriptUrl.pathname.lastIndexOf('/') + 1);
+                                            fullPath = scriptDir + path;
+                                            console.log('[WASM locateFile] Using script src:', scriptSrc, '->', fullPath);
+                                        } catch (e) {
+                                            console.warn('[WASM locateFile] Failed to parse script URL:', e);
+                                            fullPath = './build/' + path;
+                                        }
+                                    } else {
+                                        // Fallback 2: Use relative path based on current page
+                                        const currentPath = window.location.pathname;
+                                        const isRoot = currentPath === '/' || currentPath.endsWith('/index.html') || currentPath.endsWith('/enhanced-detection.html');
+                                        fullPath = isRoot ? './build/' + path : '../build/' + path;
+                                        console.log('[WASM locateFile] Using fallback path:', fullPath);
+                                    }
                                 }
+                                
                                 // Add cache-busting query parameter
-                                return fullPath + '?v=' + timestamp;
+                                const finalPath = fullPath + '?v=' + timestamp;
+                                console.log('[WASM locateFile] Final path:', finalPath);
+                                return finalPath;
                             }
                             // For non-WASM files, use default behavior
                             return scriptDirectory 
@@ -174,6 +213,18 @@
                         onAbort: function(what) {
                             if (resolved) return;
                             resolved = true;
+                            console.error('[WASM onAbort]', what);
+                            console.error('[WASM onAbort] Module config:', {
+                                locateFile: typeof moduleConfig.locateFile,
+                                timestamp: timestamp
+                            });
+                            // Try to get the expected path
+                            try {
+                                const testPath = moduleConfig.locateFile('wasm-fingerprint.wasm', '');
+                                console.error('[WASM onAbort] Expected WASM path (fallback):', testPath);
+                            } catch (e) {
+                                console.error('[WASM onAbort] Could not determine path:', e);
+                            }
                             reject(new Error('WASM initialization aborted: ' + what));
                         }
                     };
