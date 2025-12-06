@@ -110,6 +110,23 @@
         }
 
         async function initWASM() {
+            // Check if running from file:// protocol (CORS will block WASM loading)
+            if (window.location.protocol === 'file:') {
+                const errorMsg = 'WASM cannot be loaded from file:// protocol due to CORS restrictions. ' +
+                    'Please use a local HTTP server:\n\n' +
+                    'Option 1: Python server\n' +
+                    '  cd /Users/karess/Desktop/WASM_三重检测\n' +
+                    '  python3 -m http.server 8080\n' +
+                    '  Then open: http://localhost:8080/enhanced-detection.html\n\n' +
+                    'Option 2: Use GitHub Pages\n' +
+                    '  https://1karess.github.io/wasm-fingerprint/enhanced-detection.html';
+                console.error(errorMsg);
+                addResult('❌ CORS Error: Cannot load WASM from file:// protocol', 'limitation');
+                addResult('Please use a local HTTP server or GitHub Pages', 'limitation');
+                addResult('See console for instructions', 'limitation');
+                throw new Error('WASM loading blocked: file:// protocol not supported. Use HTTP server.');
+            }
+
             if (wasmModule && wasmModule.runtimeInitialized) {
                 return wasmModule;
             }
