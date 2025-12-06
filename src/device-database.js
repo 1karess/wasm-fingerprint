@@ -467,46 +467,45 @@ class DeviceSignatureDatabase {
         }
 
         // 2. L1 Cache matching (very reliable for distinguishing M1/M2/M3 vs M4)
+        // But if core configuration matches perfectly, allow more tolerance for L1 cache
         if (features.l1CacheKB && profile.cpu.l1CacheKB) {
             const expectedL1 = profile.cpu.l1CacheKB;
             const actualL1 = features.l1CacheKB;
             
-            // Use tolerance: ±10KB for noise, but increase for M1/M2/M3 series (which may have detection issues)
-            const isM1M2M3 = expectedL1.max <= 135; // M1/M2/M3 have L1 cache <= 135KB
+            // Base tolerance: ±10KB for noise
             const baseTolerance = 10;
-            const tolerance = isM1M2M3 ? 60 : baseTolerance; // Allow larger tolerance for M1/M2/M3 (may detect as 192KB due to algorithm issues)
             
-            if (actualL1 >= expectedL1.min - tolerance && actualL1 <= expectedL1.max + tolerance) {
+            // If core configuration matches perfectly, increase tolerance significantly
+            // This handles cases where L1 cache detection may be inaccurate but cores are correct
+            const coresMatchPerfectly = scores.cores >= 35; // 35 = 20 (total) + 15 (close P/E match) or 40 (exact match)
+            const extendedTolerance = coresMatchPerfectly ? 70 : baseTolerance; // Allow up to 70KB difference if cores match
+            
+            if (actualL1 >= expectedL1.min - extendedTolerance && actualL1 <= expectedL1.max + extendedTolerance) {
                 const distance = Math.min(
                     Math.abs(actualL1 - expectedL1.min),
                     Math.abs(actualL1 - expectedL1.max)
                 );
-                // If within extended tolerance but outside normal range, give partial score
-                const normalRange = expectedL1.max - expectedL1.min + baseTolerance * 2;
-                const isInNormalRange = actualL1 >= expectedL1.min - baseTolerance && actualL1 <= expectedL1.max + baseTolerance;
-                const score = isInNormalRange 
-                    ? (distance <= 5 ? 25 : (25 - (distance - 5) * 2))
-                    : Math.max(15, 25 - (distance - normalRange) * 0.5); // Partial score if in extended range
-                scores.l1Cache = Math.max(0, score);
-                if (isInNormalRange) {
+                
+                // If within normal range, give full score
+                if (actualL1 >= expectedL1.min - baseTolerance && actualL1 <= expectedL1.max + baseTolerance) {
+                    const score = distance <= 5 ? 25 : (25 - (distance - 5) * 2);
+                    scores.l1Cache = Math.max(0, score);
                     details.l1Cache.push(`L1 cache match: ${actualL1}KB (expected ${expectedL1.min}-${expectedL1.max}KB)`);
                 } else {
-                    details.l1Cache.push(`L1 cache close match: ${actualL1}KB (expected ${expectedL1.min}-${expectedL1.max}KB, within extended tolerance)`);
+                    // Within extended tolerance but outside normal range - give partial score
+                    const normalRange = expectedL1.max - expectedL1.min + baseTolerance * 2;
+                    const extendedRange = expectedL1.max - expectedL1.min + extendedTolerance * 2;
+                    const distanceFromNormal = Math.max(0, distance - (normalRange / 2));
+                    const partialScore = Math.max(10, 20 - (distanceFromNormal / extendedRange) * 15);
+                    scores.l1Cache = partialScore;
+                    details.l1Cache.push(`L1 cache close match: ${actualL1}KB (expected ${expectedL1.min}-${expectedL1.max}KB, detection may be inaccurate but cores match)`);
                 }
             } else {
-                // Even if outside extended tolerance, if cores and memory ratio match well, don't add contradiction
-                const coresMatch = scores.cores >= 30;
-                const memoryMatch = scores.memoryRatio >= 10;
-                if (coresMatch && memoryMatch) {
-                    details.l1Cache.push(`L1 cache detection may be inaccurate: ${actualL1}KB (expected ${expectedL1.min}-${expectedL1.max}KB), but other features match well`);
-                    // Give small score if very close
-                    const distance = Math.min(
-                        Math.abs(actualL1 - expectedL1.min),
-                        Math.abs(actualL1 - expectedL1.max)
-                    );
-                    if (distance <= tolerance + 20) {
-                        scores.l1Cache = Math.max(0, 10 - (distance - tolerance) * 0.2);
-                    }
+                // Even if outside extended tolerance, if cores match perfectly, don't add contradiction
+                // Just give minimal score and note the issue
+                if (coresMatchPerfectly) {
+                    scores.l1Cache = 5; // Minimal score to not block matching
+                    details.l1Cache.push(`L1 cache detection appears inaccurate: ${actualL1}KB (expected ${expectedL1.min}-${expectedL1.max}KB), but core configuration matches perfectly`);
                 } else {
                     contradictions.push(`L1 cache mismatch: got ${actualL1}KB, expected ${expectedL1.min}-${expectedL1.max}KB`);
                 }
